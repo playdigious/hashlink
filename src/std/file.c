@@ -26,6 +26,8 @@
 #	define fopen(name,mode) _wfopen(name,mode)
 #	define HL_UFOPEN
 #endif
+//TODO Set correct ifdef
+#include <IOS_IO.h>
 
 typedef struct _hl_fdesc hl_fdesc;
 struct _hl_fdesc {
@@ -43,7 +45,8 @@ HL_PRIM hl_fdesc *hl_file_open( vbyte *name, int mode, bool binary ) {
 	FILE *f = fopen((uchar*)name,MODES[mode|(binary?4:0)]);
 #	else
 	static const char *MODES[] = { "r", "w", "a", NULL, "rb", "wb", "ab" };
-	FILE *f = fopen((char*)name,MODES[mode|(binary?4:0)]);
+	// FILE *f = fopen((char*)name,MODES[mode|(binary?4:0)]);
+	FILE *f = fopen((char*)getPath(name),MODES[mode|(binary?4:0)]);
 #	endif
 	hl_fdesc *fd;
 	if( f == NULL ) return NULL;
