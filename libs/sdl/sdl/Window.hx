@@ -49,9 +49,9 @@ class Window {
 
 			var reg = ~/[0-9]+\.[0-9]+/;
 			var v : String = GL.getParameter(GL.SHADING_LANGUAGE_VERSION);
-			var shaderVersion = 130;
+			var shaderVersion = 120;
 			if( reg.match(v) )
-				shaderVersion = hxd.Math.imin( 150, Math.round( Std.parseFloat(reg.matched(0)) * 100 ) );
+				shaderVersion = hxd.Math.imin( 100, Math.round( Std.parseFloat(reg.matched(0)) * 100 ) );
 
 			var vertex = GL.createShader(GL.VERTEX_SHADER);
 			GL.shaderSource(vertex, ["#version " + shaderVersion, "void main() { gl_Position = vec4(1.0); }"].join("\n"));
@@ -59,7 +59,7 @@ class Window {
 			if( GL.getShaderParameter(vertex, GL.COMPILE_STATUS) != 1 ) throw "Failed to compile VS ("+GL.getShaderInfoLog(vertex)+")";
 
 			var fragment = GL.createShader(GL.FRAGMENT_SHADER);
-			GL.shaderSource(fragment, ["#version " + shaderVersion, "out vec4 color; void main() { color = vec4(1.0); }"].join("\n"));
+			GL.shaderSource(fragment, ["#version " + shaderVersion, "lowp vec4 color; void main() { color = vec4(1.0); }"].join("\n"));
 			GL.compileShader(fragment);
 			if( GL.getShaderParameter(fragment, GL.COMPILE_STATUS) != 1 ) throw "Failed to compile FS ("+GL.getShaderInfoLog(fragment)+")";
 
