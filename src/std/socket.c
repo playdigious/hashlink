@@ -212,7 +212,7 @@ HL_PRIM vbyte *hl_host_reverse( int ip ) {
 	struct hostent *h;
 #	if defined(HL_WIN) || defined(HL_MAC) || defined(HL_CYGWIN) || defined(HL_PS)
 	h = gethostbyaddr((char *)&ip,4,AF_INET);
-#	else
+#	elif !defined(__ANDROID__)
 	struct hostent htmp;
 	int errcode;
 	char buf[1024];
