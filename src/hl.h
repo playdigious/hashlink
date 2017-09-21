@@ -328,12 +328,8 @@ struct hl_type {
 C_FUNCTION_BEGIN
 
 HL_API int hl_type_size( hl_type *t );
-#if defined(__APPLE__) && !defined(HL_64)
-#	define min(a,b) ((a)<(b) ? (a) : (b))
-#	define hl_pad_size(size,t)	((t)->kind == HVOID ? 0 : ((-(size)) & (min(4,hl_type_size(t)) - 1)))
-#else
-#	define hl_pad_size(size,t)	((t)->kind == HVOID ? 0 : ((-(size)) & (hl_type_size(t) - 1)))
-#endif
+#define hl_pad_size(size,t)	((t)->kind == HVOID ? 0 : ((-(size)) & (hl_type_size(t) - 1)))
+HL_API int hl_pad_struct( int size, hl_type *t );
 HL_API int hl_stack_size( hl_type *t );
 
 HL_API hl_runtime_obj *hl_get_obj_rt( hl_type *ot );
