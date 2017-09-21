@@ -27,6 +27,9 @@ typedef enum {
 	MouseLeave,
 	MouseDown,
 	MouseUp,
+	TouchUp,
+	TouchDown,
+	TouchMove,
 	MouseWheel,
 	WindowState,
 	KeyDown,
@@ -142,6 +145,21 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
 			event->mouseX = e.button.x;
 			event->mouseY = e.motion.y;
 			break;
+		case SDL_FINGERDOWN:
+            event->type = TouchDown;
+            event->mouseX = e.tfinger.x;
+            event->mouseY = e.tfinger.y;
+            break;
+        case SDL_FINGERMOTION:
+            event->type = TouchMove;
+            event->mouseX = e.tfinger.x;
+            event->mouseY = e.tfinger.y;
+            break;
+        case SDL_FINGERUP:
+            event->type = TouchUp;
+            event->mouseX = e.tfinger.x;
+            event->mouseY = e.tfinger.y;
+            break;
 		case SDL_MOUSEWHEEL:
 			event->type = MouseWheel;
 			event->wheelDelta = e.wheel.y;
