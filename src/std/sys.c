@@ -76,6 +76,9 @@ typedef uchar pchar;
 #	include <limits.h>
 #	include <mach-o/dyld.h>
 #endif
+#if __ANDROID__
+#include <Android_Utils.h>
+#endif
 
 #ifndef CLK_TCK
 #	define CLK_TCK	100
@@ -128,7 +131,11 @@ HL_PRIM vbyte *hl_sys_locale() {
 
 HL_PRIM void hl_sys_print( vbyte *msg ) {
 	hl_blocking(true);
+#if __ANDROID__
+	LOG_ANDROID_FMT("Print : %s", msg);
+#else
 	uprintf(USTR("%s"),(uchar*)msg);
+#endif
 	hl_blocking(false);
 }
 
@@ -558,6 +565,8 @@ HL_PRIM vbyte *hl_sys_full_path( vbyte *path ) {
 	return (vbyte*)pstrdup(out,len);
 #elif defined(HL_PS)
 	return path;
+#elif defined(__ANDROID__)
+	return getResourcePath(path);
 #else
 	pchar buf[PATH_MAX];
 	if( realpath((pchar*)path,buf) == NULL )
