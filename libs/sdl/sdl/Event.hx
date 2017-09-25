@@ -31,6 +31,9 @@ package sdl;
 	var GControllerDown		= 102;
 	var GControllerUp		= 103;
 	var GControllerAxis 	= 104;
+	var TouchDown	= 200;
+	var TouchUp		= 201;
+	var TouchMove	= 202;
 }
 
 @:enum abstract WindowStateChange(Int) {

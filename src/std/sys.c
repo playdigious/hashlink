@@ -76,6 +76,9 @@ typedef uchar pchar;
 #	include <limits.h>
 #	include <mach-o/dyld.h>
 #endif
+#if __ANDROID__
+#include <Android_Utils.h>
+#endif
 
 #ifndef CLK_TCK
 #	define CLK_TCK	100
@@ -97,6 +100,7 @@ HL_PRIM bool hl_sys_utf8_path() {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM vbyte *hl_sys_string() {
 #if defined(HL_WIN) || defined(HL_CYGWIN) || defined(HL_MINGW)
 	return (vbyte*)USTR("Windows");
@@ -127,7 +131,11 @@ HL_PRIM vbyte *hl_sys_locale() {
 
 HL_PRIM void hl_sys_print( vbyte *msg ) {
 	hl_blocking(true);
+#if __ANDROID__
+	LOG_ANDROID_FMT("Print : %s", msg);
+#else
 	uprintf(USTR("%s"),(uchar*)msg);
+#endif
 	hl_blocking(false);
 }
 
@@ -155,6 +163,7 @@ HL_PRIM double hl_sys_time() {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM vbyte *hl_sys_get_env( vbyte *v ) {
 #	ifdef HL_PS
 	return NULL;
@@ -163,6 +172,7 @@ HL_PRIM vbyte *hl_sys_get_env( vbyte *v ) {
 #	endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_put_env( vbyte *e, vbyte *v ) {
 #if defined(HL_WIN)
 	hl_buffer *b = hl_alloc_buffer();
@@ -189,6 +199,7 @@ HL_PRIM bool hl_sys_put_env( vbyte *e, vbyte *v ) {
 extern char **environ;
 #endif
 
+// Pas utilisée dans le jeu
 HL_PRIM varray *hl_sys_env() {
 #ifdef HL_PS
 	return hl_alloc_array(&hlt_bytes,0);
@@ -239,6 +250,7 @@ HL_PRIM void hl_sys_sleep( double f ) {
 	hl_blocking(false);
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_set_time_locale( vbyte *l ) {
 #ifdef HL_POSIX
 	locale_t lc, old;
@@ -257,7 +269,7 @@ HL_PRIM bool hl_sys_set_time_locale( vbyte *l ) {
 #endif
 }
 
-
+// Pas utilisée dans le jeu
 HL_PRIM vbyte *hl_sys_get_cwd() {
 #	ifdef HL_PS
 	return (vbyte*)"";
@@ -275,6 +287,7 @@ HL_PRIM vbyte *hl_sys_get_cwd() {
 #	endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_set_cwd( vbyte *dir ) {
 #ifdef HL_PS
 	return false;
@@ -283,6 +296,7 @@ HL_PRIM bool hl_sys_set_cwd( vbyte *dir ) {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_is64() {
 #ifdef HL_64
 	return true;
@@ -291,6 +305,7 @@ HL_PRIM bool hl_sys_is64() {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM int hl_sys_command( vbyte *cmd ) {
 #if defined(HL_WIN)
 	int ret;
@@ -310,10 +325,17 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 }
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
+#ifdef TARGET_OS_IOS
+	return exists(path);
+#elif __ANDROID__
+	return exists(path);
+#else
 	pstat st;
 	return stat((pchar*)path,&st) == 0;
+#endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_delete( vbyte *path ) {
 #if defined(HL_PS)
 	return false;
@@ -322,6 +344,7 @@ HL_PRIM bool hl_sys_delete( vbyte *path ) {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_rename( vbyte *path, vbyte *newname ) {
 #if defined(HL_PS)
 	return false;
@@ -330,6 +353,7 @@ HL_PRIM bool hl_sys_rename( vbyte *path, vbyte *newname ) {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM varray *hl_sys_stat( vbyte *path ) {
 	pstat s;
 	varray *a;
@@ -352,6 +376,7 @@ HL_PRIM varray *hl_sys_stat( vbyte *path ) {
 	return a;
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_is_dir( vbyte *path ) {
 	pstat s;
 	if( stat((pchar*)path,&s) != 0 )
@@ -362,11 +387,16 @@ HL_PRIM bool hl_sys_is_dir( vbyte *path ) {
 HL_PRIM bool hl_sys_create_dir( vbyte *path, int mode ) {
 #if defined(HL_PS)
 	return false;
+#elif TARGET_OS_IOS
+	return createDir(path, mode) == 0;
+#elif __ANDROID__
+	return createDir(path, mode) == 0;
 #else
 	return mkdir((pchar*)path,mode) == 0;
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_remove_dir( vbyte *path ) {
 #if defined(HL_PS)
 	return false;
@@ -375,6 +405,7 @@ HL_PRIM bool hl_sys_remove_dir( vbyte *path ) {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM double hl_sys_cpu_time() {
 #if defined(HL_WIN)
 	FILETIME unused;
@@ -392,6 +423,7 @@ HL_PRIM double hl_sys_cpu_time() {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM double hl_sys_thread_cpu_time() {
 #if defined(HL_WIN)
 	FILETIME unused;
@@ -410,6 +442,7 @@ HL_PRIM double hl_sys_thread_cpu_time() {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM varray *hl_sys_read_dir( vbyte *_path ) {
 	pchar *path = (pchar*)_path;
 	int count = 0;
@@ -532,6 +565,8 @@ HL_PRIM vbyte *hl_sys_full_path( vbyte *path ) {
 	return (vbyte*)pstrdup(out,len);
 #elif defined(HL_PS)
 	return path;
+#elif defined(__ANDROID__)
+	return getResourcePath(path);
 #else
 	pchar buf[PATH_MAX];
 	if( realpath((pchar*)path,buf) == NULL )
@@ -540,6 +575,7 @@ HL_PRIM vbyte *hl_sys_full_path( vbyte *path ) {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM vbyte *hl_sys_exe_path() {
 #if defined(HL_WIN)
 	pchar path[MAX_PATH];
@@ -569,6 +605,7 @@ HL_PRIM vbyte *hl_sys_exe_path() {
 #endif
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM int hl_sys_get_char( bool b ) {
 #	if defined(HL_WIN)
 	return b?getche():getch();
@@ -594,6 +631,7 @@ HL_PRIM int hl_sys_get_char( bool b ) {
 static pchar **sys_args;
 static int sys_nargs;
 
+// Pas utilisée dans le jeu
 HL_PRIM varray *hl_sys_args() {
 	varray *a = hl_alloc_array(&hlt_bytes,sys_nargs);
 	int i;
@@ -610,6 +648,7 @@ HL_PRIM void hl_sys_init(void **args, int nargs, void *hlfile) {
 	hl_file = hlfile;
 }
 
+// Pas utilisée dans le jeu
 HL_PRIM vbyte *hl_sys_hl_file() {
 	return hl_file != NULL ? hl_file : hl_sys_exe_path();
 }
