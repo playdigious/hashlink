@@ -683,11 +683,11 @@ static void gc_flush_mark() {
 #		endif
 		while( pos < nwords ) {
 			void *p;
-			if( mark_bits && (mark_bits[pos >> 5] & (1 << pos)) == 0 ) { // &31 implicit
-				pos++;
-				block++;
-				continue;
-			}
+			// if( mark_bits && (mark_bits[pos >> 5] & (1 << pos)) == 0 ) { // &31 implicit
+			// 	pos++;
+			// 	block++;
+			// 	continue;
+			// }
 			p = *block++;
 			pos++;
 			page = GC_GET_PAGE(p);
@@ -758,7 +758,7 @@ static void gc_call_finalizers(){
 }
 
 static void gc_mark() {
-	/*jmp_buf regs;
+	jmp_buf regs;
 	void **stack_head;
 	void **stack_top = (void**)gc_stack_top;
 	void **mark_stack = cur_mark_stack;
@@ -832,7 +832,7 @@ static void gc_mark() {
 #	ifdef GC_DEBUG
 	gc_clear_unmarked_mem();
 #	endif
-	gc_flush_empty_pages();*/
+	gc_flush_empty_pages();
 }
 
 HL_API void hl_gc_major() {
