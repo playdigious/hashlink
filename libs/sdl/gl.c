@@ -382,8 +382,16 @@ HL_PRIM vdynamic *HL_NAME(gl_create_framebuffer)() {
 }
 
 HL_PRIM void HL_NAME(gl_bind_framebuffer)( int target, vdynamic *f ) {
+	#ifdef TARGET_OS_IOS
+	SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(SDL_GL_GetCurrentWindow(), &info);
+    glBindFramebuffer(target, ZIDX(f) ==0 ? info.info.uikit.framebuffer : ZIDX(f));
+    sdl_gl_get_error();
+    #else
 	GLOG("%d,%d",target,ZIDX(f));
 	glBindFramebuffer(target, ZIDX(f));
+	#endif
 }
 
 HL_PRIM void HL_NAME(gl_framebuffer_texture2d)( int target, int attach, int texTarget, vdynamic *t, int level ) {
@@ -422,8 +430,16 @@ HL_PRIM vdynamic *HL_NAME(gl_create_renderbuffer)() {
 }
 
 HL_PRIM void HL_NAME(gl_bind_renderbuffer)( int target, vdynamic *r ) {
+	#ifdef TARGET_OS_IOS
+	SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(SDL_GL_GetCurrentWindow(), &info);
+    glBindRenderbuffer(GL_RENDERBUFFER, ZIDX(r) == 0 ? info.info.uikit.colorbuffer : ZIDX(r));
+	sdl_gl_get_error();
+	#else
 	GLOG("%d,%d",target,ZIDX(r));
 	glBindRenderbuffer(target, ZIDX(r));
+	#endif
 }
 
 HL_PRIM void HL_NAME(gl_renderbuffer_storage)( int target, int format, int width, int height ) {

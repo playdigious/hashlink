@@ -432,10 +432,27 @@ HL_PRIM void HL_NAME(win_resize)(SDL_Window *win, int mode) {
 	}
 }
 
+#ifdef TARGET_OS_IOS
+#include "SDL_syswm.h"
 
+extern GLint oldFrameBuffer;
+extern GLint oldRenderBuffer;
+
+HL_PRIM void HL_NAME(win_swap_window)(SDL_Window *win) {
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    SDL_GetWindowWMInfo(win, &info);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, info.info.uikit.framebuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER,info.info.uikit.colorbuffer);
+    SDL_GL_SwapWindow(win);
+    //sdl_gl_get_error();
+}
+#else
 HL_PRIM void HL_NAME(win_swap_window)(SDL_Window *win) {
 	SDL_GL_SwapWindow(win);
 }
+#endif
 
 HL_PRIM void HL_NAME(win_render_to)(SDL_Window *win, SDL_GLContext gl) {
 	SDL_GL_MakeCurrent(win, gl);
