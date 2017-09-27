@@ -52,7 +52,13 @@ HL_PRIM hl_fdesc *hl_file_open( vbyte *name, int mode, bool binary ) {
 	FILE *f = fopen((uchar*)name,MODES[mode|(binary?4:0)]);
 #	elif TARGET_OS_IOS
 	static const char *MODES[] = { "r", "w", "a", NULL, "rb", "wb", "ab" };
-	FILE *f = fopen((char*)getResourcePath(name),MODES[mode|(binary?4:0)]);
+    int m = mode | (binary?4:0);
+    FILE *f = NULL;
+    if (m==1 || m>=5){
+        f = fopen((char*)getDocumentPath(name),MODES[m]);
+    }else{
+        f = fopen((char*)getResourcePath(name),MODES[m]);
+    }
 #	elif __ANDROID__
 	static const char *MODES[] = { "r", "w", "a", NULL, "rb", "wb", "ab" };
 	FILE *f = fopen((char*)getResourcePath(name),MODES[mode|(binary?4:0)]);
