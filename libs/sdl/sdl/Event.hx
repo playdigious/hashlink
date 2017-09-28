@@ -11,6 +11,7 @@ package sdl;
 	public var keyRepeat : Bool;
 	public var controller : Int;
 	public var value : Int;
+	public var fingerId : Int;
 	public function new() {
 	}
 }
