@@ -71,6 +71,14 @@ typedef uchar pchar;
 #define pstrlen	ustrlen
 #endif
 
+
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#ifdef TARGET_OS_IOS
+#include <IOS_IO.h>
+#endif
+#endif
+
 #ifdef HL_MAC
 #	include <sys/syslimits.h>
 #	include <limits.h>
@@ -318,11 +326,16 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 #else
 	int status;
 	hl_blocking(true);
-	status = system((pchar*)cmd);
-	hl_blocking(false);
+#if TARGET_OS_IOS
+    status = 0;
+#else
+    status = system((pchar*)cmd);
+#endif
+    hl_blocking(false);
 	return WEXITSTATUS(status) | (WTERMSIG(status) << 8);
 #endif
 }
+
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
 #ifdef TARGET_OS_IOS
