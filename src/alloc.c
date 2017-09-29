@@ -601,7 +601,7 @@ void *hl_gc_alloc_gen( hl_type *t, int size, int flags ) {
 
 // -------------------------  MARKING ----------------------------------------------------------
 
-static float gc_mark_threshold = 0.2f;
+static float gc_mark_threshold = 0.10f;
 static void *gc_stack_top = NULL;
 static int mark_size = 0;
 static unsigned char *mark_data = NULL;
@@ -683,7 +683,8 @@ static void gc_flush_mark() {
 #		endif
 		while( pos < nwords ) {
 			void *p;
-			if( mark_bits && (mark_bits[pos >> 5] & (1 << pos)) == 0 ) { // &31 implicit
+            unsigned char* mark_bits_ptr8 = (unsigned char*)mark_bits;
+			if( mark_bits_ptr8 && (mark_bits_ptr8[pos >> 3] & (1 << (pos&7)) == 0 )) { // &31 implicit
 				pos++;
 				block++;
 				continue;
@@ -758,7 +759,7 @@ static void gc_call_finalizers(){
 }
 
 static void gc_mark() {
-	/*jmp_buf regs;
+	jmp_buf regs;
 	void **stack_head;
 	void **stack_top = (void**)gc_stack_top;
 	void **mark_stack = cur_mark_stack;
@@ -832,7 +833,7 @@ static void gc_mark() {
 #	ifdef GC_DEBUG
 	gc_clear_unmarked_mem();
 #	endif
-	gc_flush_empty_pages();*/
+	gc_flush_empty_pages();
 }
 
 HL_API void hl_gc_major() {
@@ -1171,5 +1172,3 @@ DEFINE_PRIM(_VOID, gc_stats, _REF(_F64) _REF(_F64) _REF(_F64));
 DEFINE_PRIM(_VOID, gc_dump_memory, _BYTES);
 DEFINE_PRIM(_I32, gc_get_flags, _NO_ARG);
 DEFINE_PRIM(_VOID, gc_set_flags, _I32);
-
-
