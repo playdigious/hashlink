@@ -45,7 +45,7 @@
 #	define HL_BSD
 #endif
 
-#if defined(_64BITS) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
+#if defined(_64BITS) || defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)
 #	define HL_64
 #endif
 
@@ -88,7 +88,6 @@
 #	define HL_WIN_CALL
 #endif
 
-#define _DEBUG
 #ifdef _DEBUG
 #	define HL_DEBUG
 #endif
