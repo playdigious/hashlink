@@ -100,8 +100,14 @@ HL_PRIM int hl_dyn_casti( void *data, hl_type *t, hl_type *to ) {
 		return (int)*(double*)data;
 	case HBOOL:
 		return *(bool*)data;
-	case HNULL:
-		{
+    case HOBJ:
+    {
+        vdynamic *v = *((vdynamic**)data);
+        uchar* end = NULL;
+        return (int)utod(v->v.bytes, &end);
+    }
+    case HNULL:
+	{
 			vdynamic *v = *(vdynamic**)data;
 			if( v == NULL ) return 0;
 			return hl_dyn_casti(&v->v,t->tparam,to);
@@ -258,6 +264,12 @@ HL_PRIM double hl_dyn_castd( void *data, hl_type *t ) {
 		return *(int*)data;
 	case HBOOL:
 		return *(bool*)data;
+    case HOBJ:
+    {
+        vdynamic *v = *((vdynamic**)data);
+        uchar* end = NULL;
+        return utod(v->v.bytes, &end);
+    }
 	case HNULL:
 		{
 			vdynamic *v = *(vdynamic**)data;
@@ -290,12 +302,18 @@ HL_PRIM float hl_dyn_castf( void *data, hl_type *t ) {
 		return (float)*(int*)data;
 	case HBOOL:
 		return *(bool*)data;
-	case HNULL:
-		{
-			vdynamic *v = *(vdynamic**)data;
-			if( v == NULL ) return 0;
-			return hl_dyn_castf(&v->v,t->tparam);
-		}
+    case HOBJ:
+    {
+        vdynamic *v = *((vdynamic**)data);
+        uchar* end = NULL;
+        return (float)utod(v->v.bytes, &end);
+    }
+    case HNULL:
+	{
+		vdynamic *v = *(vdynamic**)data;
+		if( v == NULL ) return 0;
+		return hl_dyn_castf(&v->v,t->tparam);
+	}
 	default:
 		break;
 	}
