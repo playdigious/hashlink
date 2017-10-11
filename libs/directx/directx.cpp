@@ -36,7 +36,12 @@ static IDXGIFactory *GetDXGI() {
 }
 
 static void ReportDxError( HRESULT err, int line ) {
-	hl_error_msg(USTR("DXERROR %X line %d"),(DWORD)err,line);
+	if( err == DXGI_ERROR_DEVICE_REMOVED && driver ){
+		err = driver->device->GetDeviceRemovedReason();
+		hl_error_msg(USTR("DXGI_ERROR_DEVICE_REMOVED reason 0x%X line %d"),(DWORD)err,line);
+	}else{
+		hl_error_msg(USTR("DXERROR %X line %d"),(DWORD)err,line);
+	}
 }
 
 HL_PRIM dx_driver *HL_NAME(create)( HWND window, int format, int flags, int restrictLevel ) {
@@ -51,21 +56,12 @@ HL_PRIM dx_driver *HL_NAME(create)( HWND window, int format, int flags, int rest
 	};
 	static int maxLevels = sizeof(levels) / sizeof(D3D_FEATURE_LEVEL);
 	DWORD result;
-	dx_driver *d = (dx_driver*)hl_gc_alloc_noptr(sizeof(dx_driver));
-	ZeroMemory(d,sizeof(dx_driver));
-	if( restrictLevel >= maxLevels ) restrictLevel = maxLevels - 1;
-	d->init_flags = flags;
-	result = D3D11CreateDevice(NULL,D3D_DRIVER_TYPE_HARDWARE,NULL,flags,levels + restrictLevel,maxLevels - restrictLevel,D3D11_SDK_VERSION,&d->device,&d->feature,&d->context);
-	if( result == E_INVALIDARG ) // most likely no DX11.1 support, try again
-		result = D3D11CreateDevice(NULL,D3D_DRIVER_TYPE_HARDWARE,NULL,flags,NULL,0,D3D11_SDK_VERSION,&d->device,&d->feature,&d->context);
-
-	DXERR(result);
-
-	// create the SwapChain
 	DXGI_SWAP_CHAIN_DESC desc;
 	RECT r;
-	GetClientRect(window,&r);
-	ZeroMemory(&desc,sizeof(desc));
+	dx_driver *d = (dx_driver*)hl_gc_alloc_noptr(sizeof(dx_driver));
+	ZeroMemory(d,sizeof(dx_driver));
+	GetClientRect(window, &r);
+	ZeroMemory(&desc, sizeof(desc));
 	desc.BufferDesc.Width = r.right;
 	desc.BufferDesc.Height = r.bottom;
 	desc.BufferDesc.Format = (DXGI_FORMAT)format;
@@ -74,7 +70,14 @@ HL_PRIM dx_driver *HL_NAME(create)( HWND window, int format, int flags, int rest
 	desc.BufferCount = 1;
 	desc.Windowed = true;
 	desc.OutputWindow = window;
-	DXERR( GetDXGI()->CreateSwapChain(d->device,&desc,&d->swapchain) );
+	if( restrictLevel >= maxLevels ) restrictLevel = maxLevels - 1;
+	d->init_flags = flags;
+	result = D3D11CreateDeviceAndSwapChain(NULL,D3D_DRIVER_TYPE_HARDWARE,NULL,flags,levels + restrictLevel,maxLevels - restrictLevel,D3D11_SDK_VERSION,&desc,&d->swapchain,&d->device,&d->feature,&d->context);
+	if( result == E_INVALIDARG ) // most likely no DX11.1 support, try again
+		result = D3D11CreateDeviceAndSwapChain(NULL,D3D_DRIVER_TYPE_HARDWARE,NULL,flags,NULL,0,D3D11_SDK_VERSION, &desc, &d->swapchain, &d->device, &d->feature, &d->context);
+
+	DXERR(result);
+
 	driver = d;
 	return d;
 }
@@ -136,7 +139,7 @@ HL_PRIM const uchar *HL_NAME(get_device_name)() {
 	if( GetDXGI()->EnumAdapters(0,&adapter) != S_OK || adapter->GetDesc(&desc) != S_OK )
 		return USTR("Unknown");
 	adapter->Release();
-	return (uchar*)hl_copy_bytes((vbyte*)desc.Description,(ustrlen((uchar*)desc.Description)+1)*2);
+	return (uchar*)hl_copy_bytes((vbyte*)desc.Description,(int)(ustrlen((uchar*)desc.Description)+1)*2);
 }
 
 HL_PRIM double HL_NAME(get_supported_version)() {
@@ -205,7 +208,7 @@ HL_PRIM vbyte *HL_NAME(compile_shader)( vbyte *data, int dataSize, char *source,
 		*error = true;
 		code = errorMessage;
 	}
-	*size = code->GetBufferSize();
+	*size = (int)code->GetBufferSize();
 	ret = hl_copy_bytes((vbyte*)code->GetBufferPointer(),*size);
 	code->Release();
 	return ret;
@@ -216,7 +219,7 @@ HL_PRIM vbyte *HL_NAME(disassemble_shader)( vbyte *data, int dataSize, int flags
 	vbyte *ret;
 	if( D3DDisassemble(data,dataSize,flags,(char*)comments,&out) != S_OK )
 		return NULL;
-	*size = out->GetBufferSize();
+	*size = (int)out->GetBufferSize();
 	ret = hl_copy_bytes((vbyte*)out->GetBufferPointer(),*size);
 	out->Release();
 	return ret;
