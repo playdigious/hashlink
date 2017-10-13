@@ -683,8 +683,7 @@ static void gc_flush_mark() {
 #		endif
 		while( pos < nwords ) {
 			void *p;
-            unsigned char* mark_bits_ptr8 = (unsigned char*)mark_bits;
-			if( mark_bits_ptr8 && (mark_bits_ptr8[pos >> 3] & (1 << (pos&7)) == 0 )) { // &31 implicit
+			if( mark_bits && (mark_bits[pos >> 5] & (1 << (pos&31))) == 0 ) {
 				pos++;
 				block++;
 				continue;
