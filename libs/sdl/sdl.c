@@ -438,7 +438,7 @@ HL_PRIM void HL_NAME(win_resize)(SDL_Window *win, int mode) {
 	}
 }
 
-#ifdef TARGET_OS_IOS
+#if TARGET_OS_IOS
 #include "SDL_syswm.h"
 
 extern GLint oldFrameBuffer;

@@ -206,6 +206,10 @@ class GL {
 	public static function texImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, image : hl.Bytes ) {
 	}
 
+	@:hlNative("sdl","gl_compressed_tex_image2d")
+	public static function compressedTexImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, size : Int, data : hl.Bytes ) {
+	}
+
 	public static function generateMipmap( t : Int ) {
 	}
 

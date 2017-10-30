@@ -324,7 +324,7 @@ HL_PRIM int HL_NAME(gl_get_attrib_location)( vdynamic *p, vstring *name ) {
 	return loc;
 }
 
-#include "SDL_syswm.h"
+#include <SDL2/SDL_syswm.h>
 
 HL_PRIM void HL_NAME(gl_use_program)( vdynamic *p ) {
 	//printf("gl_use_program%d \n",ZIDX(p));
@@ -421,6 +421,12 @@ HL_PRIM void HL_NAME(gl_tex_parameteri)( int t, int key, int value ) {
 HL_PRIM void HL_NAME(gl_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int format, int type, vbyte *image ) {
 	//printf("gl_tex_image2d 0x%x,%d,0x%x,%d,%d,%d,0x%x,0x%x ptr=0x%x\n",target,level,internalFormat,width,height,border,format,type, image/*,hexlog(image,16)*/);
 	glTexImage2D(target, level, internalFormat, width, height, border, format, type, image);
+	sdl_gl_get_error();
+}
+
+HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int size, vbyte *data ) {
+	//printf("gl_compressed_tex_image2d 0x%x,%d,0x%x,%d,%d,%d,0x%x ptr=0x%x\n",target,level,internalFormat,width,height,border,size, datae/*,hexlog(data,16)*/);
+	glCompressedTexImage2D(target, level, internalFormat, width, height, border, size, data);
 	sdl_gl_get_error();
 }
 
@@ -656,6 +662,7 @@ DEFINE_PRIM(_VOID,gl_active_texture,_I32);
 DEFINE_PRIM(_VOID,gl_bind_texture,_I32 _NULL(_I32));
 DEFINE_PRIM(_VOID,gl_tex_parameteri,_I32 _I32 _I32);
 DEFINE_PRIM(_VOID,gl_tex_image2d,_I32 _I32 _I32 _I32 _I32 _I32 _I32 _I32 _BYTES);
+DEFINE_PRIM(_VOID,gl_compressed_tex_image2d,_I32 _I32 _I32 _I32 _I32 _I32 _I32 _BYTES);
 DEFINE_PRIM(_VOID,gl_generate_mipmap,_I32);
 DEFINE_PRIM(_VOID,gl_delete_texture,_NULL(_I32));
 DEFINE_PRIM(_NULL(_I32),gl_create_framebuffer,_NO_ARG);

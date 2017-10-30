@@ -74,7 +74,7 @@ typedef uchar pchar;
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
-#ifdef TARGET_OS_IOS
+#if TARGET_OS_IOS
 #include <IOS_IO.h>
 #endif
 #endif
@@ -338,7 +338,7 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
-#ifdef TARGET_OS_IOS
+#if TARGET_OS_IOS
 	return exists(path);
 #elif __ANDROID__
 	return exists(path);
