@@ -33,7 +33,10 @@ static bool exc_rethrow = false;
 HL_PRIM void *hl_fatal_error( const char *msg, const char *file, int line ) {
 	hl_is_blocking(true);
 #	ifdef _WIN32
-	if( GetConsoleWindow() == NULL || GetActiveWindow() != NULL ) MessageBoxA(NULL,msg,"Fatal Error", MB_OK | MB_ICONERROR);
+    HWND consoleWnd = GetConsoleWindow();
+    DWORD pid;
+    GetWindowThreadProcessId(consoleWnd, &pid);
+    if( consoleWnd == NULL || GetActiveWindow() != NULL || GetCurrentProcessId() == pid ) MessageBoxA(NULL,msg,"Fatal Error", MB_OK | MB_ICONERROR);
 #	endif
 	printf("%s(%d) : FATAL ERROR : %s\n",file,line,msg);
 	hl_is_blocking(false);
@@ -86,6 +89,25 @@ HL_PRIM void hl_throw( vdynamic *v ) {
 	}
 	longjmp(t->buf,1);
 }
+
+HL_PRIM void hl_dump_stack() {
+	void *stack[0x1000];
+	int count = capture_stack_func(stack, 0x1000);
+	int i;
+	for(i=0;i<count;i++) {
+		void *addr = stack[i];
+		uchar sym[512];
+		int size = 512;
+		uchar *str = resolve_symbol_func(addr, sym, &size);
+		if( str == NULL ) {
+			int iaddr = (int)(int_val)addr;
+			str = sym;
+			uprintf(USTR("@0x%X\n"),iaddr);
+		} else
+			uprintf(USTR("%s\n"),str);
+	}
+}
+
 
 HL_PRIM varray *hl_exception_stack() {
 	varray *a = hl_alloc_array(&hlt_bytes, stack_count);

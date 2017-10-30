@@ -24,13 +24,17 @@ STD = src/std/array.o src/std/buffer.o src/std/bytes.o src/std/cast.o src/std/da
 
 HL = src/callback.o src/code.o src/jit.o src/main.o src/module.o src/debugger.o
 
-FMT = libs/fmt/fmt.o
+FMT = libs/fmt/fmt.o libs/fmt/sha1.o
 
 SDL = libs/sdl/sdl.o libs/sdl/gl.o
 
 OPENAL = libs/openal/openal.o
 
 SSL = libs/ssl/ssl.o
+
+UV = libs/uv/uv.o
+
+UI = libs/ui/ui_stub.o
 
 LIB = ${PCRE} ${RUNTIME} ${STD}
 
@@ -59,11 +63,10 @@ LIBOPENGL = -framework OpenGL
 LIBOPENAL = -lopenal
 LIBSSL = -framework Security -framework CoreFoundation
 
-
 else
 
 # Linux
-CFLAGS += -m$(ARCH) -fPIC
+CFLAGS += -m$(ARCH) -fPIC -pthread
 LFLAGS += -lm -Wl,--export-dynamic -Wl,--no-undefined
 
 ifeq ($(ARCH),32)
@@ -82,7 +85,7 @@ all: libhl hl libs
 install_lib:
 	cp libhl.${LIBEXT} /usr/local/lib
 
-libs: fmt sdl ssl
+libs: fmt sdl ssl openal ui uv
 
 libhl: ${LIB}
 	${CC} -o libhl.$(LIBEXT) -m${ARCH} ${LIBFLAGS} -shared ${LIB} -lpthread -lm
@@ -106,13 +109,20 @@ openal: ${OPENAL} libhl
 ssl: ${SSL} libhl
 	${CC} ${CFLAGS} -shared -o ssl.hdll ${SSL} ${LIBFLAGS} -L. -lhl -lmbedtls -lmbedx509 -lmbedcrypto $(LIBSSL)
 
+ui: ${UI} libhl
+	${CC} ${CFLAGS} -shared -o ui.hdll ${UI} ${LIBFLAGS} -L. -lhl
+
+uv: ${UV} libhl
+	${CC} ${CFLAGS} -shared -o uv.hdll ${UV} ${LIBFLAGS} -L. -lhl -luv
+
+
 .SUFFIXES : .c .o
 
 .c.o :
 	${CC} ${CFLAGS} -o $@ -c $<
 
 clean_o:
-	rm -f ${STD} ${BOOT} ${RUNTIME} ${PCRE} ${HL} ${FMT} ${SDL} ${SSL}
+	rm -f ${STD} ${BOOT} ${RUNTIME} ${PCRE} ${HL} ${FMT} ${SDL} ${SSL} ${OPENAL} ${UI} ${UV}
 
 clean: clean_o
 	rm -f hl hl.exe libhl.$(LIBEXT) *.hdll
