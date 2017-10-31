@@ -564,6 +564,12 @@ class GL {
 	public static inline var ALPHA16F                       = 0x881C;
 	public static inline var ALPHA32F                       = 0x8816;
 
+	/* PVRTC */
+        public static inline var COMPRESSED_RGB_PVRTC_4BPPV1_IMG	= 0x8C00;
+        public static inline var COMPRESSED_RGB_PVRTC_2BPPV1_IMG	= 0x8C01;
+        public static inline var COMPRESSED_RGBA_PVRTC_4BPPV1_IMG	= 0x8C02;
+        public static inline var COMPRESSED_RGBA_PVRTC_2BPPV1_IMG	= 0x8C03;
+
 	/* Shaders */
 	public static inline var FRAGMENT_SHADER                  = 0x8B30;
 	public static inline var VERTEX_SHADER                    = 0x8B31;
