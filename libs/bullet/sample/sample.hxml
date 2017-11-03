@@ -1,0 +1,7 @@
+-lib heaps
+-lib hlbullet
+-lib hldx
+-cp .
+-main Main
+-hl sample.hl
+
