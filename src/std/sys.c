@@ -74,7 +74,7 @@ typedef uchar pchar;
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
-#if TARGET_OS_IOS
+#if TARGET_OS_IOS || TARGET_OS_TV
 #include <IOS_IO.h>
 #endif
 #endif
@@ -326,7 +326,7 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 #else
 	int status;
 	hl_blocking(true);
-#if TARGET_OS_IOS
+#if TARGET_OS_IOS || TARGET_OS_TV
     status = 0;
 #else
     status = system((pchar*)cmd);
@@ -338,9 +338,7 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
-#if TARGET_OS_IOS
-	return exists(path);
-#elif __ANDROID__
+#if TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
 	return exists(path);
 #else
 	pstat st;
@@ -400,9 +398,7 @@ HL_PRIM bool hl_sys_is_dir( vbyte *path ) {
 HL_PRIM bool hl_sys_create_dir( vbyte *path, int mode ) {
 #if defined(HL_PS)
 	return false;
-#elif TARGET_OS_IOS
-	return createDir(path, mode) == 0;
-#elif __ANDROID__
+#elif TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
 	return createDir(path, mode) == 0;
 #else
 	return mkdir((pchar*)path,mode) == 0;
