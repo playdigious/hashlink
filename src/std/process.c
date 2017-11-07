@@ -37,6 +37,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 typedef struct _vprocess vprocess;
 
 struct _vprocess {
@@ -134,8 +138,12 @@ HL_PRIM vprocess *hl_process_run( vbyte *cmd, varray *vargs, bool detached ) {
 	if( pipe(input) || pipe(output) || pipe(error) )
 		return NULL;
 	p = (vprocess*)hl_gc_alloc_finalizer(sizeof(vprocess));
-	p->pid = fork();
-	if( p->pid == -1 ) {
+#if TARGET_OS_TV
+    p->pid = -1;
+#else
+    p->pid = fork();
+#endif
+    if( p->pid == -1 ) {
 		close(input[0]);
 		close(input[1]);
 		close(output[0]);
@@ -152,8 +160,10 @@ HL_PRIM vprocess *hl_process_run( vbyte *cmd, varray *vargs, bool detached ) {
 		dup2(input[0],0);
 		dup2(output[1],1);
 		dup2(error[1],2);
-		execvp(argv[0],argv);
-		fprintf(stderr,"Command not found : %s\n",cmd);
+#if !TARGET_OS_TV
+        execvp(argv[0],argv);
+#endif
+        fprintf(stderr,"Command not found : %s\n",cmd);
 		exit(1);
 	}
 	// parent
