@@ -677,7 +677,7 @@ static void op( jit_ctx *ctx, CpuOp o, preg *a, preg *b, bool mode64 ) {
 		{
 			int_val cval = a->holds ? (int_val)a->holds : a->id;
 			OP(f->r_const);
-			if( mode64 && IS_64 ) W64(cval); else W((int)cval);
+			W((int)cval);
 		}
 		break;
 	case ID2(RMEM,RUNUSED):
@@ -880,6 +880,31 @@ static void patch_jump_to( jit_ctx *ctx, int p, int target ) {
 	}
 }
 
+static int stack_size( hl_type *t ) {
+	switch( t->kind ) {
+	case HUI8:
+	case HUI16:
+	case HBOOL:
+#	ifdef HL_64
+	case HI32:
+	case HF32:
+#	endif
+		return sizeof(int_val);
+	default:
+		return hl_type_size(t);
+	}
+}
+
+static int call_reg_index( int reg ) {
+#	ifdef HL_64
+	int i;
+	for(i=0;i<CALL_NREGS;i++)
+		if( CALL_REGS[i] == reg )
+			return i;
+#	endif
+	return -1;
+}
+
 static bool is_call_reg( preg *p ) {
 #	ifdef HL_64
 	int i;
@@ -1004,6 +1029,13 @@ static preg *alloc_fpu( jit_ctx *ctx, vreg *r, bool andLoad ) {
 	return p;
 }
 
+static void reg_bind( vreg *r, preg *p ) {
+	if( r->current )
+		r->current->holds = NULL;
+	r->current = p;
+	p->holds = r;
+}
+
 static preg *alloc_cpu( jit_ctx *ctx, vreg *r, bool andLoad ) {
 	preg *p = fetch(r);
 	if( p->kind != RCPU ) {
@@ -1014,12 +1046,28 @@ static preg *alloc_cpu( jit_ctx *ctx, vreg *r, bool andLoad ) {
 		p = alloc_reg(ctx, RCPU);
 		if( andLoad )
 			load(ctx,p,r);
-		else {
-			if( r->current )
-				r->current->holds = NULL;
-			r->current = p;
-			p->holds = r;
-		}
+		else
+			reg_bind(r,p);
+	} else
+		RLOCK(p);
+	return p;
+}
+
+static preg *alloc_cpu_call( jit_ctx *ctx, vreg *r ) {
+	preg *p = fetch(r);
+	if( p->kind != RCPU ) {
+#		ifndef HL_64
+		if( r->t->kind == HI64 ) return alloc_fpu(ctx,r,true);
+		if( r->size > 4 ) ASSERT(r->size);
+#		endif
+		p = alloc_reg(ctx, RCPU_CALL);
+		load(ctx,p,r);
+	} else if( is_call_reg(p) ) {
+		preg *p2 = alloc_reg(ctx, RCPU_CALL);
+		op64(ctx,MOV,p2,p);
+		scratch(p);
+		reg_bind(r,p2);
+		return p2;
 	} else
 		RLOCK(p);
 	return p;
@@ -1037,8 +1085,10 @@ static preg *alloc_cpu64( jit_ctx *ctx, vreg *r, bool andLoad ) {
 		op64(ctx,XOR,p,p);
 		load(ctx,p,r);
 	} else {
+		// remove higher bits
 		preg tmp;
-		op64(ctx,AND,p,pconst64(&tmp,(int_val)0xFFFFFFFF));
+		op64(ctx,SHL,p,pconst(&tmp,32));
+		op64(ctx,SHR,p,pconst(&tmp,32));
 		RLOCK(p);
 	}
 	return p;
@@ -1165,6 +1215,7 @@ static void store( jit_ctx *ctx, vreg *r, preg *v, bool bind ) {
 
 static void store_result( jit_ctx *ctx, vreg *r ) {
 	switch( r->t->kind ) {
+#	ifndef HL_64
 	case HF64:
 		scratch(r->current);
 		op64(ctx,FSTP,&r->stack,UNUSED);
@@ -1173,8 +1224,9 @@ static void store_result( jit_ctx *ctx, vreg *r ) {
 		scratch(r->current);
 		op64(ctx,FSTP32,&r->stack,UNUSED);
 		break;
+#	endif
 	default:
-		store(ctx,r,PEAX,true);
+		store(ctx,r,IS_FLOAT(r) ? REG_AT(XMM(0)) : PEAX,true);
 		break;
 	}
 }
@@ -1236,7 +1288,7 @@ static int pad_before_call( jit_ctx *ctx, int size ) {
 
 static void push_reg( jit_ctx *ctx, vreg *r ) {
 	preg p;
-	switch( hl_stack_size(r->t) ) {
+	switch( stack_size(r->t) ) {
 	case 1:
 		op64(ctx,SUB,PESP,pconst(&p,1));
 		op32(ctx,MOV8,pmem(&p,Esp,0),alloc_cpu(ctx,r,true));
@@ -1279,12 +1331,13 @@ static void push_reg( jit_ctx *ctx, vreg *r ) {
 
 static int begin_native_call( jit_ctx *ctx, int nargs ) {
 	ctx->nativeArgsCount = nargs;
-	return pad_before_call(ctx, IS_64 ? 0 : nargs * HL_WSIZE);
+	return pad_before_call(ctx, nargs > CALL_NREGS ? (nargs - CALL_NREGS) * HL_WSIZE : 0);
 }
 
 static preg *alloc_native_arg( jit_ctx *ctx ) {
 #	ifdef HL_64
-	preg *r = REG_AT(CALL_REGS[ctx->nativeArgsCount - 1]);
+	int rid = ctx->nativeArgsCount - 1;
+	preg *r = rid < CALL_NREGS ? REG_AT(CALL_REGS[rid]) : alloc_reg(ctx,RCPU_CALL);
 	scratch(r);
 	return r;
 #	else
@@ -1294,9 +1347,29 @@ static preg *alloc_native_arg( jit_ctx *ctx ) {
 
 static void set_native_arg( jit_ctx *ctx, preg *r ) {
 #	ifdef HL_64
-	preg *target = REG_AT(r->kind == RFPU ? XMM(--ctx->nativeArgsCount) : CALL_REGS[--ctx->nativeArgsCount]);
+	if( r->kind == RFPU ) ASSERT(0);
+	int rid = --ctx->nativeArgsCount;
+	preg *target;
+	if( rid >= CALL_NREGS ) {
+		op64(ctx,PUSH,r,UNUSED);
+		return;
+	}
+	target = REG_AT(CALL_REGS[rid]);
 	if( target != r ) {
 		op64(ctx, MOV, target, r);
+		scratch(target);
+	}
+#	else
+	op32(ctx,PUSH,r,UNUSED);
+#	endif
+}
+
+static void set_native_arg_fpu( jit_ctx *ctx, preg *r, bool isf32 ) {
+#	ifdef HL_64
+	if( r->kind != RFPU ) ASSERT(0);
+	preg *target = REG_AT(XMM(IS_WINCALL64 ? --ctx->nativeArgsCount : ctx->nativeArgsCount));
+	if( target != r ) {
+		op64(ctx, isf32 ? MOVSS : MOVSD, target, r);
 		scratch(target);
 	}
 #	else
@@ -1360,7 +1433,7 @@ static int prepare_call_args( jit_ctx *ctx, int count, int *args, vreg *vregs, i
 			RLOCK(c);
 			continue;
 		}
-		size += hl_stack_size(r->t);
+		size += stack_size(r->t);
 	}
 	paddedSize = pad_before_call(ctx,size);
 	for(i=0;i<count;i++) {
@@ -2095,7 +2168,7 @@ static void op_jump( jit_ctx *ctx, vreg *a, vreg *b, hl_opcode *op, int targetPo
 				op64(ctx,TEST,pb,pb);
 				XJump_small(JZero,jb);
 				op_call_fun(ctx,NULL,(int)(int_val)a->t->obj->rt->compareFun,2,args);
-				op64(ctx,CMP,PEAX,pconst(&p,0));
+				op32(ctx,CMP,PEAX,pconst(&p,0));
 				register_jump(ctx,do_jump(ctx,op->op,false),targetPos);
 				patch_jump(ctx,ja);
 				patch_jump(ctx,jb);
@@ -2156,7 +2229,6 @@ static void *callback_c2hl( void *f, hl_type *t, void **args, vdynamic *ret ) {
 		from the function type. The stack and regs will be setup by the trampoline function.
 	*/
 	unsigned char stack[MAX_ARGS * 8];
-	int cpuCount = 0, fpuCount = 0;
 	call_regs cregs = {0};
 	if( t->fun->nargs > MAX_ARGS )
 		hl_error("Too many arguments for dynamic call");
@@ -2164,11 +2236,9 @@ static void *callback_c2hl( void *f, hl_type *t, void **args, vdynamic *ret ) {
 	for(i=0;i<t->fun->nargs;i++) {
 		hl_type *at = t->fun->args[i];
 		int creg = select_call_reg(&cregs,at,i);
-		if( creg >= 0 ) {
-			if( REG_IS_FPU(creg) ) fpuCount++; else cpuCount++;
+		if( creg >= 0 )
 			continue;
-		}
-		size += hl_stack_size(at);
+		size += stack_size(at);
 	}
 	pad = (-size) & 15;
 	size += pad;
@@ -2179,13 +2249,13 @@ static void *callback_c2hl( void *f, hl_type *t, void **args, vdynamic *ret ) {
 		hl_type *at = t->fun->args[j];
 		void *v = args[j];
 		int creg = mapped_reg(&cregs,j);
-		int tsize = hl_stack_size(at);
+		int tsize = stack_size(at);
 		void *store;
 		if( creg >= 0 ) {
 			if( REG_IS_FPU(creg) ) {
-				store = stack + size + CALL_NREGS * HL_WSIZE + --fpuCount * sizeof(double);
+				store = stack + size + CALL_NREGS * HL_WSIZE + (creg - XMM(0)) * sizeof(double);
 			} else {
-				store = stack + size + --cpuCount * HL_WSIZE;
+				store = stack + size + call_reg_index(creg) * HL_WSIZE;
 			}
 			switch( at->kind ) {
 			case HBOOL:
@@ -2203,6 +2273,12 @@ static void *callback_c2hl( void *f, hl_type *t, void **args, vdynamic *ret ) {
 					double d = (double)*(float*)v;
 					*(double*)store = d;
 				}
+				break;
+			case HF64:
+				*(double*)store = *(double*)v;
+				break;
+			case HI64:
+				*(int64*)store = *(int64*)v;
 				break;
 			default:
 				*(void**)store = v;
@@ -2229,6 +2305,7 @@ static void *callback_c2hl( void *f, hl_type *t, void **args, vdynamic *ret ) {
 				break;
 #			ifndef HL_64
 			case HF64:
+			case HI64:
 				// will be reversed when pushed back
 				*(int*)store = *((int*)v + 1);
 				*((int*)store + 1) = *(int*)v;
@@ -2342,26 +2419,32 @@ static void jit_c2hl( jit_ctx *ctx ) {
 	op64(ctx,RET,UNUSED,UNUSED);
 }
 
-static vdynamic *jit_wrapper_call( vclosure_wrapper *c, char *stack_args, void **call_regs ) {
+static vdynamic *jit_wrapper_call( vclosure_wrapper *c, char *stack_args, void **regs ) {
 	vdynamic *args[MAX_ARGS];
 	int i;
 	int nargs = c->cl.t->fun->nargs;
-#	ifdef JIT_DEBUG
-	if( nargs > 0 && IS_64 )
-		hl_error("TODO!"); // read call_regs
-#	endif
+	call_regs cregs = {0};
 	if( nargs > MAX_ARGS )
 		hl_error("Too many arguments for wrapped call");
 	for(i=0;i<nargs;i++) {
 		hl_type *t = c->cl.t->fun->args[i];
-		args[i] = hl_is_dynamic(t) ? *(vdynamic**)stack_args : hl_make_dyn(stack_args,t);
-		stack_args += hl_stack_size(t);
+		int creg = select_call_reg(&cregs,t,i);
+		if( creg < 0 ) {
+			args[i] = hl_is_dynamic(t) ? *(vdynamic**)stack_args : hl_make_dyn(stack_args,t);
+			stack_args += stack_size(t);
+		} else if( hl_is_dynamic(t) ) {
+			args[i] = *(vdynamic**)(regs + call_reg_index(creg) + 1);
+		} else if( t->kind == HF32 || t->kind == HF64 ) {
+			args[i] = hl_make_dyn(regs + CALL_NREGS + creg - XMM(0),&hlt_f64);
+		} else {
+			args[i] = hl_make_dyn(regs + call_reg_index(creg) + 1,t);
+		}
 	}
 	return hl_dyn_call(c->wrappedFun,args,nargs);
 }
 
-static void *jit_wrapper_ptr( vclosure_wrapper *c, char *stack_args, void **call_regs ) {
-	vdynamic *ret = jit_wrapper_call(c, stack_args, call_regs);
+static void *jit_wrapper_ptr( vclosure_wrapper *c, char *stack_args, void **regs ) {
+	vdynamic *ret = jit_wrapper_call(c, stack_args, regs);
 	hl_type *tret = c->cl.t->fun->ret;
 	switch( tret->kind ) {
 	case HVOID:
@@ -2376,8 +2459,8 @@ static void *jit_wrapper_ptr( vclosure_wrapper *c, char *stack_args, void **call
 	}
 }
 
-static double jit_wrapper_d( vclosure_wrapper *c, char *stack_args, void **call_regs ) {
-	vdynamic *ret = jit_wrapper_call(c, stack_args, call_regs);
+static double jit_wrapper_d( vclosure_wrapper *c, char *stack_args, void **regs ) {
+	vdynamic *ret = jit_wrapper_call(c, stack_args, regs);
 	return hl_dyn_castd(&ret,&hlt_dyn);
 }
 
@@ -2427,8 +2510,9 @@ static void jit_hl2c( jit_ctx *ctx ) {
 	XJump_small(JEq,jfloat2);
 
 	size = begin_native_call(ctx,3);
+	op64(ctx, LEA, tmp, pmem(&p,Ebp,-HL_WSIZE*CALL_NREGS*2));
+	set_native_arg(ctx, tmp);
 	op64(ctx, LEA, tmp, pmem(&p,Ebp,HL_WSIZE*3));
-	set_native_arg(ctx, PEBP);
 	set_native_arg(ctx, tmp);
 	set_native_arg(ctx, cl);
 	call_native(ctx, jit_wrapper_ptr, size);
@@ -2436,6 +2520,9 @@ static void jit_hl2c( jit_ctx *ctx ) {
 
 	patch_jump(ctx,jfloat1);
 	patch_jump(ctx,jfloat2);
+	size = begin_native_call(ctx,3);
+	op64(ctx, LEA, tmp, pmem(&p,Ebp,-HL_WSIZE*CALL_NREGS*2));
+	set_native_arg(ctx, tmp);
 	op64(ctx, LEA, tmp, pmem(&p,Ebp,HL_WSIZE*3));
 	set_native_arg(ctx, tmp);
 	set_native_arg(ctx, cl);
@@ -2646,13 +2733,10 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 	for(i=0;i<nargs;i++) {
 		vreg *r = R(i);
 		int creg = select_call_reg(&cregs,r->t,i);
-		if( creg < 0 ) {
-			r->stackPos = argsSize + HL_WSIZE * 2 + (IS_WINCALL64?0x20:0);
-			argsSize += hl_stack_size(r->t);
-		} else if( IS_WINCALL64 ) {
+		if( creg < 0 || IS_WINCALL64 ) {
 			// use existing stack storage 
 			r->stackPos = argsSize + HL_WSIZE * 2;
-			argsSize += hl_stack_size(r->t);
+			argsSize += stack_size(r->t);
 		} else {
 			// make room in local vars
 			size += r->size;
@@ -2684,7 +2768,7 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 			int reg = mapped_reg(&cregs, i);
 			if( reg < 0 ) continue;
 			p = REG_AT(reg);
-			op64(ctx,MOV,fetch(r),p);
+			op64(ctx,IS_FLOAT(r) ? MOVSD : MOV,fetch(r),p);
 			p->holds = r;
 			r->current = p;
 		}
@@ -3033,11 +3117,8 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 			break;
 		case OVirtualClosure:
 			{
-#				ifdef HL_64
-				jit_error("TODO");
-#				else
 				int size, i;
-				preg *r = alloc_cpu(ctx, ra, true);
+				preg *r = alloc_cpu_call(ctx, ra);
 				hl_type *t = NULL;
 				hl_type *ot = ra->t;
 				while( t == NULL ) {
@@ -3050,18 +3131,17 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 					}
 					ot = ot->obj->super;
 				}
-				size = pad_before_call(ctx,HL_WSIZE*3);
-				op64(ctx,PUSH,r,UNUSED);
+				size = begin_native_call(ctx,3);
+				set_native_arg(ctx,r);
 				// read r->type->vobj_proto[i] for function address
 				op64(ctx,MOV,r,pmem(&p,r->id,0));
 				op64(ctx,MOV,r,pmem(&p,r->id,HL_WSIZE*2));
 				op64(ctx,MOV,r,pmem(&p,r->id,HL_WSIZE*o->p3));
-				op64(ctx,PUSH,r,UNUSED);
+				set_native_arg(ctx,r);
 				op64(ctx,MOV,r,pconst64(&p,(int_val)t));
-				op64(ctx,PUSH,r,UNUSED);
+				set_native_arg(ctx,r);
 				call_native(ctx,hl_alloc_closure_ptr,size);
 				store(ctx,dst,PEAX,true);
-#				endif
 			}
 			break;
 		case OCallClosure:
@@ -3072,7 +3152,7 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 				//  dst = hl_dyncast(ret,t_dynamic,t_dst);
 				// }
 				int offset = o->p3 * HL_WSIZE;
-				preg *r = alloc_reg(ctx, RCPU);
+				preg *r = alloc_reg(ctx, RCPU_CALL);
 				if( offset & 15 ) offset += 16 - (offset & 15);
 				op64(ctx,SUB,PESP,pconst(&p,offset));
 				op64(ctx,MOV,r,PESP);
@@ -3087,14 +3167,17 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 					}
 				}
 #				ifdef HL_64
-				jit_error("TODO");
+				int size = begin_native_call(ctx, 3) + offset;
+				set_native_arg(ctx, pconst(&p,o->p3));
+				set_native_arg(ctx, r);
+				set_native_arg(ctx, fetch(ra));
 #				else
 				int size = pad_before_call(ctx,HL_WSIZE*2 + sizeof(int) + offset);
 				op64(ctx,PUSH,pconst(&p,o->p3),UNUSED);
 				op64(ctx,PUSH,r,UNUSED);
 				op64(ctx,PUSH,alloc_cpu(ctx,ra,true),UNUSED);
-				call_native(ctx,hl_dyn_call,size);
 #				endif
+				call_native(ctx,hl_dyn_call,size);
 				if( dst->t->kind != HVOID ) {
 					store(ctx,dst,PEAX,true);
 					make_dyn_cast(ctx,dst,dst);
@@ -3166,13 +3249,13 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 					// ASM for --> if( hl_vfields(o)[f] ) r = *hl_vfields(o)[f]; else r = hl_dyn_get(o,hash(field),vt)
 					{
 						int jhasfield, jend, size;
-						preg *v = alloc_cpu(ctx,ra,true);
+						preg *v = alloc_cpu_call(ctx,ra);
 						preg *r = alloc_reg(ctx,RCPU);
 						op64(ctx,MOV,r,pmem(&p,v->id,sizeof(vvirtual)+HL_WSIZE*o->p3));
 						op64(ctx,TEST,r,r);
 						XJump_small(JNotZero,jhasfield);
 						size = begin_native_call(ctx, 3);
-						set_native_arg(ctx, pconst64(&p,(int_val)dst->t));
+						set_native_arg(ctx,pconst64(&p,(int_val)dst->t));
 						set_native_arg(ctx,pconst64(&p,(int_val)ra->t->virt->fields[o->p3].hashed_name));
 						set_native_arg(ctx,v);
 						call_native(ctx,get_dynget(dst->t),size);
@@ -3204,13 +3287,26 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 					// ASM for --> if( hl_vfields(o)[f] ) *hl_vfields(o)[f] = v; else hl_dyn_set(o,hash(field),vt,v)
 					{
 						int jhasfield, jend;
-						preg *obj = alloc_cpu(ctx,dst,true);
+						preg *obj = alloc_cpu_call(ctx,dst);
 						preg *r = alloc_reg(ctx,RCPU);
 						op64(ctx,MOV,r,pmem(&p,obj->id,sizeof(vvirtual)+HL_WSIZE*o->p2));
 						op64(ctx,TEST,r,r);
 						XJump_small(JNotZero,jhasfield);
 #						ifdef HL_64
-						jit_error("TODO");
+						switch( rb->t->kind ) {
+						case HF64:
+						case HF32:
+							size = begin_native_call(ctx,3);
+							set_native_arg_fpu(ctx, fetch(rb), rb->t->kind == HF32);
+							break;
+						default:
+							size = begin_native_call(ctx, 4);
+							set_native_arg(ctx, fetch(rb));
+							set_native_arg(ctx, pconst64(&p,(int_val)rb->t));
+							break;
+						}
+						set_native_arg(ctx,pconst(&p,dst->t->virt->fields[o->p2].hashed_name));
+						set_native_arg(ctx,obj);
 #						else
 						switch( rb->t->kind ) {
 						case HF64:
@@ -3231,8 +3327,8 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 						op32(ctx,MOV,r,pconst(&p,dst->t->virt->fields[o->p2].hashed_name));
 						op64(ctx,PUSH,r,UNUSED);
 						op64(ctx,PUSH,obj,UNUSED);
-						call_native(ctx,get_dynset(rb->t),size);
 #						endif
+						call_native(ctx,get_dynset(rb->t),size);
 						XJump_small(JAlways,jend);
 						patch_jump(ctx,jhasfield);
 						copy_from(ctx, pmem(&p,(CpuReg)r->id,0), rb);
@@ -3304,8 +3400,8 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 					int jhasfield, jend;
 					bool need_dyn;
 					vreg *obj = R(o->extra[0]);
-					preg *v = alloc_cpu(ctx,obj, true);
-					preg *r = alloc_reg(ctx,RCPU);
+					preg *v = alloc_cpu_call(ctx,obj);
+					preg *r = alloc_reg(ctx,RCPU_CALL);
 					op64(ctx,MOV,r,pmem(&p,v->id,sizeof(vvirtual)+HL_WSIZE*o->p2));
 					op64(ctx,TEST,r,r);
 					save_regs(ctx);
@@ -3333,27 +3429,20 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 
 					jit_buf(ctx);
 
-#					ifdef HL_64
-					jit_error("TODO");
-#					else
-					size = pad_before_call(ctx,HL_WSIZE*5);
-
+					size = begin_native_call(ctx, 5);
 					if( !need_dyn )
-						op64(ctx,PUSH,pconst(&p,0),UNUSED);
+						set_native_arg(ctx, pconst(&p,0));
 					else {
-						preg *rtmp = alloc_reg(ctx,RCPU);
+						preg *rtmp = alloc_native_arg(ctx);
 						op64(ctx,LEA,rtmp,pmem(&p,Esp,paramsSize - sizeof(vdynamic) + (size - HL_WSIZE*5)));
-						op64(ctx,PUSH,rtmp,UNUSED);
-						RUNLOCK(rtmp);
+						set_native_arg(ctx,rtmp);
+						if( !IS_64 ) RUNLOCK(rtmp);
 					}
-
-					op64(ctx,PUSH,r,UNUSED);
-					op64(ctx,PUSH,pconst(&p,obj->t->virt->fields[o->p2].hashed_name),UNUSED); // fid
-					op64(ctx,PUSH,pconst64(&p,(int_val)obj->t->virt->fields[o->p2].t),UNUSED); // ftype
-					op64(ctx,PUSH,pmem(&p,v->id,HL_WSIZE),UNUSED); // o->value
-
+					set_native_arg(ctx,r);
+					set_native_arg(ctx,pconst(&p,obj->t->virt->fields[o->p2].hashed_name)); // fid
+					set_native_arg(ctx,pconst64(&p,(int_val)obj->t->virt->fields[o->p2].t)); // ftype
+					set_native_arg(ctx,pmem(&p,v->id,HL_WSIZE)); // o->value
 					call_native(ctx,hl_dyn_call_obj,size + paramsSize);
-#					endif
 					if( need_dyn ) {
 						preg *r = IS_FLOAT(dst) ? REG_AT(XMM(0)) : PEAX;
 						copy(ctx,r,pmem(&p,Esp,HDYN_VALUE - sizeof(vdynamic)),dst->size);
@@ -3482,13 +3571,13 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 			break;
 		case OGetArray:
 			{
-				op64(ctx,MOV,alloc_cpu(ctx,dst,false),pmem2(&p,alloc_cpu(ctx,ra,true)->id,alloc_cpu64(ctx,rb,true)->id,HL_WSIZE,sizeof(varray)));
+				op64(ctx,MOV,alloc_cpu(ctx,dst,false),pmem2(&p,alloc_cpu(ctx,ra,true)->id,alloc_cpu64(ctx,rb,true)->id,hl_type_size(dst->t),sizeof(varray)));
 				store(ctx,dst,dst->current,false);
 			}
 			break;
 		case OSetArray:
 			{
-				op64(ctx,MOV,pmem2(&p,alloc_cpu(ctx,dst,true)->id,alloc_cpu64(ctx,ra,true)->id,HL_WSIZE,sizeof(varray)),alloc_cpu(ctx,rb,true));
+				op64(ctx,MOV,pmem2(&p,alloc_cpu(ctx,dst,true)->id,alloc_cpu64(ctx,ra,true)->id,hl_type_size(dst->t),sizeof(varray)),alloc_cpu(ctx,rb,true));
 			}
 			break;
 		case OArraySize:
@@ -3624,7 +3713,7 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 			{
 				int jz;
 				preg *r = alloc_cpu(ctx,dst,true);
-				op32(ctx,TEST,r,r);
+				op64(ctx,TEST,r,r);
 				XJump_small(JNotZero,jz);
 				call_native_consts(ctx,hl_null_access,NULL,0);
 				patch_jump(ctx,jz);
@@ -3671,7 +3760,7 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 				case HF32:
 				case HF64:
 					size = begin_native_call(ctx, 3);
-					set_native_arg(ctx,fetch(rb));
+					set_native_arg_fpu(ctx,fetch(rb),rb->t->kind == HF32);
 					set_native_arg(ctx,pconst64(&p,hl_hash_gen(hl_get_ustring(m->code,o->p2),true)));
 					set_native_arg(ctx,fetch(dst));
 					call_native(ctx,get_dynset(rb->t),size);

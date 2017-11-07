@@ -67,17 +67,6 @@ HL_PRIM int hl_type_size( hl_type *t ) {
 	return T_SIZES[t->kind];
 }
 
-HL_PRIM int hl_stack_size( hl_type *t ) {
-	switch( t->kind ) {
-	case HUI8:
-	case HUI16:
-	case HBOOL:
-		return sizeof(int);
-	default:
-		return T_SIZES[t->kind];
-	}
-}
-
 HL_PRIM int hl_pad_struct( int size, hl_type *t ) {
 	int align = sizeof(void*);
 #	define GET_ALIGN(type) { struct { unsigned char a; type b; } s = {0}; align = (int)((unsigned char *)&s.b - (unsigned char*)&s); }
@@ -406,6 +395,14 @@ HL_PRIM varray *hl_type_instance_fields( hl_type *t ) {
 	int out = 0;
 	hl_type_obj *o;
 	hl_runtime_obj *rt;
+	if( t->kind == HVIRTUAL ) {
+		int i;
+		a = hl_alloc_array(&hlt_bytes,t->virt->nfields);
+		names = hl_aptr(a,const uchar *);
+		for(i=0;i<t->virt->nfields;i++)
+			names[i] = t->virt->fields[i].name;
+		return a;
+	}
 	if( t->kind != HOBJ )
 		return NULL;
 	o = t->obj;
