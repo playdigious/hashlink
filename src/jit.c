@@ -19,6 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#ifdef _MSC_VER
+#pragma warning(disable:4820)
+#endif
 #include <math.h>
 #include <hlmodule.h>
 
@@ -106,6 +109,7 @@ typedef enum {
 	TEST8,
 	MOV16,
 	CMP16,
+	TEST16,
 	// --
 	_CPU_LAST
 } CpuOp;
@@ -188,12 +192,13 @@ typedef enum {
 	RADDR = 4,
 	RMEM = 5,
 	RUNUSED = 6,
-	RCPU_CALL = 1 | 8
+	RCPU_CALL = 1 | 8,
+	RCPU_8BITS = 1 | 16
 } preg_kind;
 
 typedef struct {
 	preg_kind kind;
-	CpuReg id;
+	int id;
 	int lock;
 	vreg *holds;
 } preg;
@@ -218,7 +223,7 @@ struct vreg {
 static int RCPU_SCRATCH_REGS[] = { Eax, Ecx, Edx, R8, R9, R10, R11 };
 static CpuReg CALL_REGS[] = { Ecx, Edx, R8, R9 };
 #	else
-#		define CALL_NREGS			6
+#		define CALL_NREGS			6 // TODO : XMM6+XMM7 are FPU reg parameters
 #		define RCPU_SCRATCH_COUNT	9
 #		define RFPU_SCRATCH_COUNT	16
 static int RCPU_SCRATCH_REGS[] = { Eax, Ecx, Edx, Esi, Edi, R8, R9, R10, R11 };
@@ -252,7 +257,7 @@ static int RCPU_SCRATCH_REGS[] = { Eax, Ecx, Edx };
 
 #define BREAK()		B(0xCC)
 
-#if defined(HL_64) && defined(HL_VCC) && defined(_DEBUG)
+#if defined(HL_64) && defined(HL_VCC)
 #	define JIT_CUSTOM_LONGJUMP
 #endif
 
@@ -476,6 +481,7 @@ static opform OP_FORMS[_CPU_LAST] = {
 	{ "TEST8", 0x84, 0x84, RM(0xF6,0) },
 	{ "MOV16", OP16(0x8B), OP16(0x89), OP16(0xB8) },
 	{ "CMP16", OP16(0x3B), OP16(0x39) },
+	{ "TEST16", OP16(0x85) },
 };
 
 #ifdef OP_LOG
@@ -569,12 +575,26 @@ static void log_op( jit_ctx *ctx, CpuOp o, preg *a, preg *b, bool mode64 ) {
 		B(b); \
 	}
 
+static bool is_reg8( preg *a ) {
+	return a->kind == RSTACK || a->kind == RMEM || a->kind == RCONST || (a->kind == RCPU && a->id != Esi && a->id != Edi);
+}
+
 static void op( jit_ctx *ctx, CpuOp o, preg *a, preg *b, bool mode64 ) {
 	opform *f = &OP_FORMS[o];
 	int r64 = mode64 && (o != PUSH && o != POP && o != CALL) ? 8 : 0;
 #	ifdef OP_LOG
 	log_op(ctx,o,a,b,mode64 && IS_64);
 #	endif
+	switch( o ) {
+	case CMP8:
+	case TEST8:
+	case MOV8:
+		if( !is_reg8(a) || !is_reg8(b) )
+			ASSERT(0);
+		break;
+	default:
+		break;
+	}
 	switch( ID2(a->kind,b->kind) ) {
 	case ID2(RUNUSED,RUNUSED):
 		ERRIF(f->r_mem == 0);
@@ -925,6 +945,7 @@ static preg *alloc_reg( jit_ctx *ctx, preg_kind k ) {
 	switch( k ) {
 	case RCPU:
 	case RCPU_CALL:
+	case RCPU_8BITS:
 		{
 			int off = ctx->allocOffset++;
 			const int count = RCPU_SCRATCH_COUNT;
@@ -933,6 +954,7 @@ static preg *alloc_reg( jit_ctx *ctx, preg_kind k ) {
 				p = ctx->pregs + r;
 				if( p->lock >= ctx->currentPos ) continue;
 				if( k == RCPU_CALL && is_call_reg(p) ) continue;
+				if( k == RCPU_8BITS && !is_reg8(p) ) continue;
 				if( p->holds == NULL ) {
 					RLOCK(p);
 					return p;
@@ -942,6 +964,7 @@ static preg *alloc_reg( jit_ctx *ctx, preg_kind k ) {
 				preg *p = ctx->pregs + RCPU_SCRATCH_REGS[(i + off)%count];
 				if( p->lock >= ctx->currentPos ) continue;
 				if( k == RCPU_CALL && is_call_reg(p) ) continue;
+				if( k == RCPU_8BITS && !is_reg8(p) ) continue;
 				if( p->holds ) {
 					RLOCK(p);
 					p->holds->current = NULL;
@@ -1053,6 +1076,7 @@ static preg *alloc_cpu( jit_ctx *ctx, vreg *r, bool andLoad ) {
 	return p;
 }
 
+// allocate a register that is not a call parameter
 static preg *alloc_cpu_call( jit_ctx *ctx, vreg *r ) {
 	preg *p = fetch(r);
 	if( p->kind != RCPU ) {
@@ -1095,6 +1119,23 @@ static preg *alloc_cpu64( jit_ctx *ctx, vreg *r, bool andLoad ) {
 #	endif
 }
 
+// make sure the register can be used with 8 bits access
+static preg *alloc_cpu8( jit_ctx *ctx, vreg *r, bool andLoad ) {
+	preg *p = fetch(r);
+	if( p->kind != RCPU ) {
+		p = alloc_reg(ctx, RCPU_8BITS);
+		load(ctx,p,r);
+	} else if( !is_reg8(p) ) {
+		preg *p2 = alloc_reg(ctx, RCPU_8BITS);
+		op64(ctx,MOV,p2,p);
+		scratch(p);
+		reg_bind(r,p2);
+		return p2;
+	} else
+		RLOCK(p);
+	return p;
+}
+
 static preg *copy( jit_ctx *ctx, preg *to, preg *from, int size ) {
 	if( size == 0 || to == from ) return to;
 	switch( ID2(to->kind,from->kind) ) {
@@ -1109,8 +1150,22 @@ static preg *copy( jit_ctx *ctx, preg *to, preg *from, int size ) {
 #	endif
 		switch( size ) {
 		case 1:
-			if( to->kind == RCPU )
+			if( to->kind == RCPU ) {
 				op64(ctx,XOR,to,to);
+				if( !is_reg8(to) ) {
+					preg p;
+					op32(ctx,MOV16,to,from);
+					op32(ctx,SHL,to,pconst(&p,24));
+					op32(ctx,SHR,to,pconst(&p,24));
+					break;
+				}
+			} else if( !is_reg8(from) ) {
+				preg *r = alloc_reg(ctx, RCPU_CALL);				
+				op32(ctx, MOV, r, from);
+				RUNLOCK(r);
+				op32(ctx,MOV8,to,r);
+				return from;
+			}
 			op32(ctx,MOV8,to,from);
 			break;
 		case 2:
@@ -1291,7 +1346,7 @@ static void push_reg( jit_ctx *ctx, vreg *r ) {
 	switch( stack_size(r->t) ) {
 	case 1:
 		op64(ctx,SUB,PESP,pconst(&p,1));
-		op32(ctx,MOV8,pmem(&p,Esp,0),alloc_cpu(ctx,r,true));
+		op32(ctx,MOV8,pmem(&p,Esp,0),alloc_cpu8(ctx,r,true));
 		break;
 	case 2:
 		op64(ctx,SUB,PESP,pconst(&p,2));
@@ -1366,8 +1421,10 @@ static void set_native_arg( jit_ctx *ctx, preg *r ) {
 
 static void set_native_arg_fpu( jit_ctx *ctx, preg *r, bool isf32 ) {
 #	ifdef HL_64
-	if( r->kind != RFPU ) ASSERT(0);
-	preg *target = REG_AT(XMM(IS_WINCALL64 ? --ctx->nativeArgsCount : ctx->nativeArgsCount));
+	if( r->kind == RCPU ) ASSERT(0);
+	// can only be used if last argument !!
+	ctx->nativeArgsCount--;
+	preg *target = REG_AT(XMM(IS_WINCALL64 ? ctx->nativeArgsCount : 0));
 	if( target != r ) {
 		op64(ctx, isf32 ? MOVSS : MOVSD, target, r);
 		scratch(target);
@@ -1986,10 +2043,10 @@ static void op_jump( jit_ctx *ctx, vreg *a, vreg *b, hl_opcode *op, int targetPo
 		break;
 	case HNULL:
 		{
-			preg *pa = alloc_cpu(ctx,a,true);
-			preg *pb = alloc_cpu(ctx,b,true);
+			preg *pa = hl_type_size(a->t->tparam) == 1 ? alloc_cpu8(ctx,a,true) : alloc_cpu(ctx,a,true);
+			preg *pb = hl_type_size(b->t->tparam) == 1 ? alloc_cpu8(ctx,b,true) : alloc_cpu(ctx,b,true);
 			if( op->op == OJEq ) {
-				// if( a == b || (a && b && a->b == b->v) ) goto
+				// if( a == b || (a && b && a->v == b->v) ) goto
 				int ja, jb;
 				// if( a != b && (!a || !b || a->v != b->v) ) goto
 				op64(ctx,CMP,pa,pb);
@@ -2178,6 +2235,9 @@ static void op_jump( jit_ctx *ctx, vreg *a, vreg *b, hl_opcode *op, int targetPo
 		}
 		// fallthrough
 	default:
+		// make sure we have valid 8 bits registers
+		if( a->size == 1 ) alloc_cpu8(ctx,a,true);
+		if( b->size == 1 ) alloc_cpu8(ctx,b,true);
 		op_binop(ctx,NULL,a,b,op);
 		break;
 	}
@@ -2682,9 +2742,9 @@ static void make_dyn_cast( jit_ctx *ctx, vreg *dst, vreg *v ) {
 	tmp = alloc_native_arg(ctx);
 	op64(ctx,MOV,tmp,REG_AT(Ebp));
 	if( v->stackPos >= 0 )
-		op32(ctx,ADD,tmp,pconst(&p,v->stackPos));
+		op64(ctx,ADD,tmp,pconst(&p,v->stackPos));
 	else
-		op32(ctx,SUB,tmp,pconst(&p,-v->stackPos));
+		op64(ctx,SUB,tmp,pconst(&p,-v->stackPos));
 	set_native_arg(ctx,tmp);
 	call_native(ctx,get_dyncast(dst->t),size);
 	store_result(ctx, dst);
@@ -2768,7 +2828,7 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 			int reg = mapped_reg(&cregs, i);
 			if( reg < 0 ) continue;
 			p = REG_AT(reg);
-			op64(ctx,IS_FLOAT(r) ? MOVSD : MOV,fetch(r),p);
+			copy(ctx,fetch(r),p,r->size);
 			p->holds = r;
 			r->current = p;
 		}
@@ -2902,7 +2962,7 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 		case OJNotNull:
 		case OJNull:
 			{
-				preg *r = alloc_cpu(ctx, dst, true);
+				preg *r = dst->t->kind == HBOOL ? alloc_cpu8(ctx, dst, true) : alloc_cpu(ctx, dst, true);
 				op64(ctx, dst->t->kind == HBOOL ? TEST8 : TEST, r, r);
 				XJump( o->op == OJFalse || o->op == OJNull ? JZero : JNotZero,jump);
 				register_jump(ctx,jump,(opCount + 1) + o->p2);
@@ -3429,12 +3489,13 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 
 					jit_buf(ctx);
 
-					size = begin_native_call(ctx, 5);
-					if( !need_dyn )
+					if( !need_dyn ) {
+						size = begin_native_call(ctx, 5);
 						set_native_arg(ctx, pconst(&p,0));
-					else {
-						preg *rtmp = alloc_native_arg(ctx);
-						op64(ctx,LEA,rtmp,pmem(&p,Esp,paramsSize - sizeof(vdynamic) + (size - HL_WSIZE*5)));
+					} else {
+						preg *rtmp = alloc_reg(ctx,RCPU);
+						op64(ctx,LEA,rtmp,pmem(&p,Esp,paramsSize - sizeof(vdynamic)));
+						size = begin_native_call(ctx, 5);
 						set_native_arg(ctx,rtmp);
 						if( !IS_64 ) RUNLOCK(rtmp);
 					}
@@ -3495,7 +3556,7 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 			{
 				preg *base = alloc_cpu(ctx, ra, true);
 				preg *offset = alloc_cpu64(ctx, rb, true);
-				preg *r = alloc_reg(ctx,RCPU);
+				preg *r = alloc_reg(ctx,o->op == OGetI8 ? RCPU_8BITS : RCPU);
 				op64(ctx,XOR,r,r);
 				op32(ctx, o->op == OGetI8 ? MOV8 : MOV16,r,pmem2(&p,base->id,offset->id,1,0));
 				store(ctx, dst, r, true);
@@ -3512,7 +3573,7 @@ int hl_jit_function( jit_ctx *ctx, hl_module *m, hl_function *f ) {
 			{
 				preg *base = alloc_cpu(ctx, dst, true);
 				preg *offset = alloc_cpu64(ctx, ra, true);
-				preg *value = alloc_cpu(ctx, rb, true);
+				preg *value = alloc_cpu8(ctx, rb, true);
 				op32(ctx,MOV8,pmem2(&p,base->id,offset->id,1,0),value);
 			}
 			break;
