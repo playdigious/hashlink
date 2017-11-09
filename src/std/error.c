@@ -108,10 +108,10 @@ HL_PRIM void hl_dump_stack() {
 		uchar *str = resolve_symbol_func(addr, sym, &size);
 		if( str == NULL ) {
 			int iaddr = (int)(int_val)addr;
+			usprintf(sym,512,USTR("@0x%X"),iaddr);
 			str = sym;
-			uprintf(USTR("@0x%X\n"),iaddr);
-		} else
-			uprintf(USTR("%s\n"),str);
+		}
+		uprintf(USTR("%s\n"),str);
 	}
 }
 
@@ -163,6 +163,30 @@ HL_PRIM void hl_fatal_fmt( const char *file, int line, const char *fmt, ...) {
 
 HL_PRIM void hl_breakpoint() {
 	hl_debug_break();
+}
+
+#ifdef HL_LINUX
+#include <signal.h>
+static int debugger_present = -1;
+static void _sigtrap_handler(int signum) {
+	debugger_present = 0;
+	signal(SIGTRAP,SIG_DFL);
+}
+#endif
+
+HL_PRIM bool hl_detect_debugger() {
+#	if defined(HL_WIN)
+	return (bool)IsDebuggerPresent();
+#	elif defined(HL_LINUX)
+	if( debugger_present == -1 ) {
+		debugger_present = 1;
+		signal(SIGTRAP,_sigtrap_handler);
+		raise(SIGTRAP);
+	}
+	return (bool)debugger_present;
+#	else
+	return false;
+#	endif
 }
 
 HL_PRIM void hl_assert() {

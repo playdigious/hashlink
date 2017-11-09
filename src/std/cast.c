@@ -30,8 +30,8 @@
 #	define DYN_PAD
 #endif
 
-static vdynamic vdyn_true = { &hlt_bool, DYN_PAD true };
-static vdynamic vdyn_false = { &hlt_bool, DYN_PAD false };
+static vdynamic vdyn_true = { &hlt_bool, DYN_PAD {true} };
+static vdynamic vdyn_false = { &hlt_bool, DYN_PAD {false} };
 
 static void invalid_cast( hl_type *from, hl_type *to ) {
 	hl_error_msg(USTR("Can't cast %s to %s"),hl_type_str(from),hl_type_str(to));
