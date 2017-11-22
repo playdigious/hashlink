@@ -570,6 +570,9 @@ class GL {
         public static inline var COMPRESSED_RGBA_PVRTC_4BPPV1_IMG	= 0x8C02;
         public static inline var COMPRESSED_RGBA_PVRTC_2BPPV1_IMG	= 0x8C03;
 
+	/* ETC1 */
+	public static inline var COMPRESSED_RGB8_ETC1				= 0x8D64;
+
 	/* ETC2 / EAC */
 	public static inline var COMPRESSED_RGB8_ETC2           		= 0x9274;
 	public static inline var COMPRESSED_SRGB8_ETC2          		= 0x9275;
