@@ -194,7 +194,7 @@ C_FUNCTION_END
 #	define hl_debug_break()	if( IsDebuggerPresent() ) __debugbreak()
 #elif defined(HL_PS)
 #	define hl_debug_break()	__debugbreak()
-#elif defined(HL_LINUX)
+#elif defined(HL_LINUX) && defined(__i386__)
 #	ifdef HL_64
 #	define hl_debug_break() \
 		if( hl_detect_debugger() ) \
