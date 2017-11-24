@@ -140,7 +140,7 @@ HL_PRIM vbyte *hl_sys_locale() {
 HL_PRIM void hl_sys_print( vbyte *msg ) {
 	hl_blocking(true);
 #if __ANDROID__
-	LOG_ANDROID_FMT("Print : %s", msg);
+	LOG_ANDROID_FMT("Print : %s", hl_to_utf8(msg));
 #else
 	uprintf(USTR("%s"),(uchar*)msg);
 #endif
