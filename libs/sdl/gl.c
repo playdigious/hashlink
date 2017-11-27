@@ -15,25 +15,15 @@
 #	include <SDL.h>
 #	include <GL/GLU.h>
 #	include <glext.h>
-#elif defined(HL_PS)
-#	include <GLES3/gl3.h>
-#	undef HL_NAME
-#	define HL_NAME(n) ps_##n
-#	define glClearDepth glClearDepthf
-#	define NOIMPL	hl_error("Not implemented")
-#	define glGetQueryObjectiv(...)	NOIMPL
-#	define glGetQueryObjectui64v(...) NOIMPL
-#	define glQueryCounter(...) NOIMPL
-#	define glBindFragDataLocation(...)	// noop
+#elif defined(HL_CONSOLE)
+#	include <graphic/glapi.h>
 #else
 #	include <SDL2/SDL.h>
 #	include <GL/glu.h>
 #	include <GL/glext.h>
 #endif
 
-#ifdef HL_PS
-#define GL_IMPORT(fun, t)
-#else
+#ifndef HL_CONSOLE
 #define GL_IMPORT(fun, t) PFNGL##t##PROC fun
 #include "GLImports.h"
 #undef GL_IMPORT
@@ -342,14 +332,12 @@ HL_PRIM vdynamic *HL_NAME(gl_create_shader)( int type ) {
 	return alloc_i32(s);
 }
 
-#ifndef HL_PS
 HL_PRIM void HL_NAME(gl_shader_source)( vdynamic *s, vstring *src ) {
 	const GLchar *c = (GLchar*)hl_to_utf8(src->bytes);
 	//printf("gl_shader_source%d,%s \n",s->v.i,c);
 	glShaderSource(s->v.i, 1, &c, NULL);
 	sdl_gl_get_error();
 }
-#endif
 
 HL_PRIM void HL_NAME(gl_compile_shader)( vdynamic *s ) {
 	//printf("gl_compile_shader%d \n",s->v.i);
@@ -650,9 +638,7 @@ DEFINE_PRIM(_NULL(_I32),gl_get_uniform_location,_NULL(_I32) _STRING);
 DEFINE_PRIM(_I32,gl_get_attrib_location,_NULL(_I32) _STRING);
 DEFINE_PRIM(_VOID,gl_use_program,_NULL(_I32));
 DEFINE_PRIM(_NULL(_I32),gl_create_shader,_I32);
-#ifndef HL_PS
 DEFINE_PRIM(_VOID,gl_shader_source,_NULL(_I32) _STRING);
-#endif
 DEFINE_PRIM(_VOID,gl_compile_shader,_NULL(_I32));
 DEFINE_PRIM(_BYTES,gl_get_shader_info_bytes,_NULL(_I32));
 DEFINE_PRIM(_DYN,gl_get_shader_parameter,_NULL(_I32) _I32);
