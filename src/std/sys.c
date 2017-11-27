@@ -375,6 +375,7 @@ HL_PRIM bool hl_sys_create_dir( vbyte *path, int mode ) {
 	return createDir(path, mode) == 0;
 #else
 	return mkdir((pchar*)path,mode) == 0;
+#endif
 }
 
 // Pas utilisée dans le jeu

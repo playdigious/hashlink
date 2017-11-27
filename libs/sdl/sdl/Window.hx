@@ -62,7 +62,7 @@ class Window {
 				shaderVersion = Math.round( Std.parseFloat(reg.matched(0)) * 100 );
 				if( shaderVersion < minVer ) shaderVersion = minVer;
 			}
-			#endif
+			#end
 
 			var vertex = GL.createShader(GL.VERTEX_SHADER);
 			GL.shaderSource(vertex, ["#version " + shaderVersion, "void main() { gl_Position = vec4(1.0); }"].join("\n"));
