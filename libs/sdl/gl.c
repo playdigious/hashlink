@@ -4,7 +4,7 @@
 
 #if defined(__APPLE__)
 #	include <TargetConditionals.h>
-#	if TARGET_OS_IOS
+#	if TARGET_OS_IOS || TARGET_OS_TV
 #		include <SDL2/SDL.h>
 #		include <OpenGLES/ES2/gl.h>
 #	elif TARGET_OS_OSX
@@ -104,7 +104,7 @@ HL_PRIM void HL_NAME(gl_clear)( int bits ) {
 }
 
 HL_PRIM int HL_NAME(gl_get_error)() {
-	/*//glFlush();
+	/*glFlush();
 	uint error = glGetError();
 	if(error != GL_NO_ERROR)
 		printf("gl get error : %d \n", error);
@@ -425,7 +425,7 @@ HL_PRIM void HL_NAME(gl_tex_image2d)( int target, int level, int internalFormat,
 }
 
 HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int size, vbyte *data ) {
-	//printf("gl_compressed_tex_image2d 0x%x,%d,0x%x,%d,%d,%d,0x%x ptr=0x%x\n",target,level,internalFormat,width,height,border,size, datae/*,hexlog(data,16)*/);
+	//printf("gl_compressed_tex_image2d 0x%x,%d,0x%x,%d,%d,%d,0x%x ptr=0x%x\n",target,level,internalFormat,width,height,border,size, data);
 	glCompressedTexImage2D(target, level, internalFormat, width, height, border, size, data);
 	sdl_gl_get_error();
 }
