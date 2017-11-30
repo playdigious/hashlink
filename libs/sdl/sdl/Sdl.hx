@@ -24,6 +24,13 @@ class Sdl {
 		glOptions(major, minor, depth, stencil, flags);
 	}
 
+	public static function getPlatform()
+	{
+		return get_platform();
+	}
+	
+	@:hlNative("sdl","get_platform")
+	static function get_platform() return hxd.System.Platform.PC;
 
 	public static dynamic function onGlContextRetry() {
 		return false;
