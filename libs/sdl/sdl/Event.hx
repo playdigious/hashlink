@@ -12,6 +12,8 @@ package sdl;
 	public var controller : Int;
 	public var value : Int;
 	public var fingerId : Int;
+	public var saveName : hl.Bytes;
+	public var saveData : hl.Bytes;
 	public function new() {
 	}
 }
@@ -35,6 +37,7 @@ package sdl;
 	var TouchDown	= 200;
 	var TouchUp		= 201;
 	var TouchMove	= 202;
+	var CloudSaveLoaded = 300;
 }
 
 @:enum abstract WindowStateChange(Int) {
