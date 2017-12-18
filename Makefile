@@ -80,16 +80,25 @@ LIBOPENAL = -lopenal
 
 endif
 
+ifndef INSTALL_DIR
+INSTALL_DIR=/usr/local
+endif
+
 all: libhl hl libs
 
 install:
-	cp hl /usr/bin
-	cp libhl.${LIBEXT} /usr/lib
-	cp *.hdll /usr/lib
-	cp src/hl.h src/hlc.h src/hlc_main.c /usr/include
+	mkdir -p $(INSTALL_DIR)
+	mkdir -p $(INSTALL_DIR)/bin
+	mkdir -p $(INSTALL_DIR)/lib
+	mkdir -p $(INSTALL_DIR)/include
+	cp hl $(INSTALL_DIR)/bin
+	cp libhl.${LIBEXT} $(INSTALL_DIR)/lib
+	cp *.hdll $(INSTALL_DIR)/lib
+	cp src/hl.h src/hlc.h src/hlc_main.c $(INSTALL_DIR)/include
 
-install_lib:
-	cp libhl.${LIBEXT} /usr/local/lib
+uninstall:
+	rm -f $(INSTALL_DIR)/bin/hl $(INSTALL_DIR)/lib/libhl.${LIBEXT} $(INSTALL_DIR)/lib/*.hdll
+	rm -f $(INSTALL_DIR)/include/hl.h $(INSTALL_DIR)/include/hlc.h $(INSTALL_DIR)/include/hlc_main.c
 
 libs: fmt sdl ssl openal ui uv
 
