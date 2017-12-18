@@ -17,13 +17,19 @@
 #	include <glext.h>
 #elif defined(HL_CONSOLE)
 #	include <graphic/glapi.h>
+#elif defined(HL_MESA)
+# 	include <GLES3/gl3.h>
+#	include <GL/osmesa.h>
+#	define GL_IMPORT(fun, t)
+#	define glBindFragDataLocation(...)
+#	define glGetQueryObjectiv glGetQueryObjectuiv
 #else
 #	include <SDL2/SDL.h>
 #	include <GL/glu.h>
 #	include <GL/glext.h>
 #endif
 
-#ifndef HL_CONSOLE
+#if !defined(HL_CONSOLE) && !defined(HL_MESA)
 #define GL_IMPORT(fun, t) PFNGL##t##PROC fun
 #include "GLImports.h"
 #undef GL_IMPORT
@@ -130,6 +136,10 @@ HL_PRIM void HL_NAME(gl_viewport)( int x, int y, int width, int height ) {
 	//printf("gl_viewport%d,%d,%d,%d \n",x,y,width,height);
 	glViewport(x, y, width, height);
 	sdl_gl_get_error();
+}
+
+HL_PRIM void HL_NAME(gl_flush)() {
+	glFlush();
 }
 
 HL_PRIM void HL_NAME(gl_finish)() {
@@ -602,6 +612,69 @@ HL_PRIM void HL_NAME(gl_draw_elements)( int mode, int count, int type, int start
 	sdl_gl_get_error();
 }
 
+// queries
+
+HL_PRIM vdynamic *HL_NAME(gl_create_query)() {
+	unsigned int t = 0;
+	glGenQueries(1, &t);
+	GLOGR("%d",t,"");
+	return alloc_i32(t);
+}
+
+HL_PRIM void HL_NAME(gl_delete_query)( vdynamic *q ) {
+	GLOG("%d",q->v.i);
+	glDeleteQueries(1, (const GLuint *) &q->v.i);
+}
+
+HL_PRIM void HL_NAME(gl_begin_query)( int target, vdynamic *q ) {
+	glBeginQuery(target,q->v.i);
+}
+
+HL_PRIM void HL_NAME(gl_end_query)( int target ) {
+	glEndQuery(target);
+}
+
+HL_PRIM bool HL_NAME(gl_query_result_available)( vdynamic *q ) {
+	int v = 0;
+	glGetQueryObjectiv(q->v.i, GL_QUERY_RESULT_AVAILABLE, &v);
+	return v == GL_TRUE;
+}
+
+HL_PRIM double HL_NAME(gl_query_result)( vdynamic *q ) {
+	GLuint64 v = -1;
+#	ifndef HL_MESA
+	glGetQueryObjectui64v(q->v.i, GL_QUERY_RESULT, &v);
+#	endif
+	return (double)v;
+}
+
+HL_PRIM void HL_NAME(gl_query_counter)( vdynamic *q, int target ) {
+#	ifndef HL_MESA
+	glQueryCounter(q->v.i, target);
+#	endif
+}
+
+// vertex array
+
+HL_PRIM vdynamic *HL_NAME(gl_create_vertex_array)() {
+	unsigned int f = 0;
+	glGenVertexArrays(1, &f);
+	GLOGR("%d",f,"");
+	return alloc_i32(f);
+}
+
+HL_PRIM void HL_NAME(gl_bind_vertex_array)( vdynamic *b ) {
+	unsigned int bb = (unsigned)b->v.i;
+	GLOG("%d",bb);
+	glBindVertexArray(bb);
+}
+
+HL_PRIM void HL_NAME(gl_delete_vertex_array)( vdynamic *b ) {
+	unsigned int bb = (unsigned)b->v.i;
+	GLOG("%d",bb);
+	glDeleteVertexArrays(1, &bb);
+}
+
 DEFINE_PRIM(_BOOL,gl_init,_NO_ARG);
 DEFINE_PRIM(_BOOL,gl_is_context_lost,_NO_ARG);
 DEFINE_PRIM(_VOID,gl_clear,_I32);
@@ -612,6 +685,7 @@ DEFINE_PRIM(_VOID,gl_clear_depth,_F64);
 DEFINE_PRIM(_VOID,gl_clear_stencil,_I32);
 DEFINE_PRIM(_VOID,gl_viewport,_I32 _I32 _I32 _I32);
 DEFINE_PRIM(_VOID,gl_finish,_NO_ARG);
+DEFINE_PRIM(_VOID,gl_flush,_NO_ARG);
 DEFINE_PRIM(_VOID,gl_pixel_storei,_I32 _I32);
 DEFINE_PRIM(_BYTES,gl_get_string,_I32);
 DEFINE_PRIM(_VOID,gl_enable,_I32);

@@ -22,13 +22,21 @@ class Debugger {
 
 	var stepBreakData : { ptr : Pointer, old : Int };
 
+	public var is64(get, never) : Bool;
+
 	public var eval : Eval;
 	public var currentStackFrame : Int;
 	public var stackFrameCount(get, never) : Int;
 	public var stoppedThread : Null<Int>;
 
+	public var customTimeout : Null<Float>;
+
 	public function new() {
 		breakPoints = [];
+	}
+
+	function get_is64() {
+		return jit.is64;
 	}
 
 	public function loadModule( content : haxe.io.Bytes ) {
@@ -36,8 +44,7 @@ class Debugger {
 		module.load(content);
 	}
 
-	public function connect( api : Api, host : String, port : Int ) {
-		this.api = api;
+	public function connect( host : String, port : Int ) {
 		sock = new sys.net.Socket();
 		try {
 			sock.connect(new sys.net.Host(host), port);
@@ -45,20 +52,21 @@ class Debugger {
 			sock.close();
 			return false;
 		}
-
 		jit = new JitInfo();
 		if( !jit.read(sock.input, module) ) {
 			sock.close();
 			return false;
 		}
 		module.init(jit.align);
-		eval = new Eval(module, api, jit);
+		return true;
+	}
 
+	public function init( api : Api ) {
+		this.api = api;
+		eval = new Eval(module, api, jit);
 		if( !api.start() )
 			return false;
-
 		wait(); // wait first break
-
 		return true;
 	}
 
@@ -73,14 +81,20 @@ class Debugger {
 		return wait();
 	}
 
+	public function pause() {
+		if( !api.breakpoint() )
+			throw "Failed to break process";
+		return wait();
+	}
+
 	function singleStep(tid) {
-		var r = getReg(tid, EFlags);
-		setReg(tid, EFlags, r.or(256));
+		var r = getReg(tid, EFlags).toInt() | 256;
+		setReg(tid, EFlags, hld.Pointer.make(r,0));
 	}
 
 	public function getException() {
 		var exc = @:privateAccess eval.readPointer(jit.debugExc);
-		if( exc == null )
+		if( exc.isNull() )
 			return null;
 		return eval.readVal(exc, HDyn);
 	}
@@ -94,12 +108,15 @@ class Debugger {
 	function wait( onStep = false ) : Api.WaitResult {
 		var cmd = null;
 		while( true ) {
-			cmd = api.wait(1000);
+			cmd = api.wait(customTimeout == null ? 1000 : Math.ceil(customTimeout * 1000));
 
 			var tid = cmd.tid;
 			switch( cmd.r ) {
-			case Timeout:
-				// continue
+			case Timeout, Handled:
+
+				if( customTimeout != null )
+					return cmd.r;
+
 			case Breakpoint:
 				var eip = getReg(tid, Eip);
 
@@ -124,9 +141,7 @@ class Debugger {
 						setAsm(codePos, b.oldByte);
 						// move backward
 						setReg(tid, Eip, eip.offset(-1));
-						// set EFLAGS to single step
-						var r = getReg(tid, EFlags);
-						setReg(tid, EFlags, r.or(256));
+						singleStep(tid);
 						nextStep = codePos;
 						break;
 					}
@@ -142,7 +157,10 @@ class Debugger {
 				if( onStep )
 					return SingleStep;
 				resume();
-			default:
+			case Error if( cmd.tid != jit.mainThread ):
+				stoppedThread = cmd.tid;
+				resume();
+			case Error, Exit:
 				break;
 			}
 		}
@@ -297,8 +315,11 @@ class Debugger {
 		if( e == null && size > 0 ) {
 			// we are on the first opcode of a C function ?
 			// try again with immediate frame
-			asmPos = mem.getPointer(jit.align.ptr,jit.align).sub(jit.codeStart);
-			e = jit.resolveAsmPos(asmPos);
+			var ptr = mem.getPointer(jit.align.ptr, jit.align);
+			if( ptr > jit.codeStart && ptr < jit.codeEnd ) {
+				asmPos = ptr.sub(jit.codeStart);
+				e = jit.resolveAsmPos(asmPos);
+			}
 		} else {
 			// if we are on ret, our EBP is wrong, so let's ignore this stack part
 			var op = api.readByte(eip, 0);
@@ -324,20 +345,36 @@ class Debugger {
 				return stack;
 		}
 
-		if( jit.is64 ) throw "TODO : use int64 calculus";
-
 		// similar to module/module_capture_stack
-		var stackBottom = esp.toInt();
-		var stackTop = jit.stackTop.toInt();
-		for( i in 0...size >> 2 ) {
-			var val = mem.getI32(i << 2);
-			if( val > stackBottom && val < stackTop || (inProlog && i == 0) ) {
-				var codePos = mem.getI32((i + 1) << 2) - jit.codeStart.toInt();
-				var e = jit.resolveAsmPos(codePos);
-				if( e != null && e.fpos >= 0 ) {
-					e.ebp = Pointer.make(val,0);
-					stack.push(e);
-					if( max > 0 && stack.length >= max ) return stack;
+		if( is64 ) {
+			for( i in 0...size >> 3 ) {
+				var val = mem.getPointer(i << 3, jit.align);
+				if( val > esp && val < jit.stackTop || (inProlog && i == 0) ) {
+					var codePtr = mem.getPointer((i + 1) << 3, jit.align);
+					if( codePtr < jit.codeStart || codePtr > jit.codeEnd )
+						continue;
+					var codePos = codePtr.sub(jit.codeStart);
+					var e = jit.resolveAsmPos(codePos);
+					if( e != null && e.fpos >= 0 ) {
+						e.ebp = val;
+						stack.push(e);
+						if( max > 0 && stack.length >= max ) return stack;
+					}
+				}
+			}
+		} else {
+			var stackBottom = esp.toInt();
+			var stackTop = jit.stackTop.toInt();
+			for( i in 0...size >> 2 ) {
+				var val = mem.getI32(i << 2);
+				if( val > stackBottom && val < stackTop || (inProlog && i == 0) ) {
+					var codePos = mem.getI32((i + 1) << 2) - jit.codeStart.toInt();
+					var e = jit.resolveAsmPos(codePos);
+					if( e != null && e.fpos >= 0 ) {
+						e.ebp = Pointer.make(val,0);
+						stack.push(e);
+						if( max > 0 && stack.length >= max ) return stack;
+					}
 				}
 			}
 		}
@@ -423,6 +460,25 @@ class Debugger {
 		return set;
 	}
 
+	public function clearBreakpoints( file : String ) {
+		var ffuns = module.getFileFunctions(file);
+		if( ffuns == null )
+			return;
+		for( b in breakPoints.copy() )
+			for( f in ffuns.functions )
+				if( b.fid == f.ifun ) {
+					removeBP(b);
+					break;
+				}
+	}
+
+	function removeBP( bp ) {
+		breakPoints.remove(bp);
+		setAsm(bp.codePos, bp.oldByte);
+		if( nextStep == bp.codePos )
+			nextStep = -1;
+	}
+
 	public function removeBreakpoint( file : String, line : Int ) {
 		var breaks = module.getBreaks(file, line);
 		if( breaks == null )
@@ -432,9 +488,7 @@ class Debugger {
 			for( a in breakPoints )
 				if( a.fid == b.ifun && a.pos == b.pos ) {
 					rem = true;
-					breakPoints.remove(a);
-					setAsm(a.codePos, a.oldByte);
-					if( nextStep == a.codePos ) nextStep = -1;
+					removeBP(a);
 					break;
 				}
 		return rem;

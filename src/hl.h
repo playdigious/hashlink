@@ -22,7 +22,12 @@
 #ifndef HL_H
 #define HL_H
 
-#define HL_VERSION	0x130
+/**
+	Detailed documentation can be found here: 
+	https://github.com/HaxeFoundation/hashlink/wiki/
+**/
+
+#define HL_VERSION	0x140
 
 #ifdef _WIN32
 #	define HL_WIN
@@ -179,7 +184,13 @@ typedef wchar_t	uchar;
 #	define utostr(out,size,str) wcstombs(out,str,size)
 #else
 #	include <stdarg.h>
-typedef unsigned short uchar;
+// #	include <uchar.h>
+#include <stddef.h>
+#include <stdint.h>
+
+typedef uint16_t char16_t;
+typedef uint32_t char32_t;
+typedef char16_t uchar;
 #	undef USTR
 #	define USTR(str)	u##str
 #endif
@@ -488,6 +499,7 @@ HL_API bool hl_safe_cast( hl_type *t, hl_type *to );
 
 HL_API varray *hl_alloc_array( hl_type *t, int size );
 HL_API vdynamic *hl_alloc_dynamic( hl_type *t );
+HL_API vdynamic *hl_alloc_dynbool( bool b );
 HL_API vdynamic *hl_alloc_obj( hl_type *t );
 HL_API venum *hl_alloc_enum( hl_type *t, int index );
 HL_API vvirtual *hl_alloc_virtual( hl_type *t );
