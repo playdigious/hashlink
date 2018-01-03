@@ -27,9 +27,6 @@ typedef enum {
 	MouseLeave,
 	MouseDown,
 	MouseUp,
-	TouchUp,
-	TouchDown,
-	TouchMove,
 	MouseWheel,
 	WindowState,
 	KeyDown,
@@ -39,7 +36,17 @@ typedef enum {
 	GControllerRemoved,
 	GControllerDown,
 	GControllerUp,
-	GControllerAxis
+	GControllerAxis,
+	TouchDown = 200,
+	TouchUp,
+	TouchMove,
+	CloudSaveLoaded = 300,
+    AppTerminating = 400,
+    LowMemory,
+    WillEnterBackground,
+    DidEnterBackground,
+    WillEnterForeground,
+    DidEnterForeground,
 } event_type;
 
 typedef enum {
@@ -114,6 +121,24 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
 		SDL_Event e;
 		if (SDL_PollEvent(&e) == 0) break;
 		switch (e.type) {
+		case SDL_APP_TERMINATING:
+            event->type = AppTerminating;
+            break;
+        case SDL_APP_LOWMEMORY:
+            event->type = LowMemory;
+            break;
+        case SDL_APP_WILLENTERBACKGROUND:
+            event->type = WillEnterBackground;
+            break;
+        case SDL_APP_DIDENTERBACKGROUND:
+            event->type = DidEnterBackground;
+            break;
+        case SDL_APP_WILLENTERFOREGROUND:
+            event->type = WillEnterForeground;
+            break;
+        case SDL_APP_DIDENTERFOREGROUND:
+            event->type = DidEnterForeground;
+            break;
 		case SDL_QUIT:
 			event->type = Quit;
 			break;

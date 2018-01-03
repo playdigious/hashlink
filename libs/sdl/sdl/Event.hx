@@ -38,6 +38,13 @@ package sdl;
 	var TouchUp		= 201;
 	var TouchMove	= 202;
 	var CloudSaveLoaded = 300;
+	//AppEvents
+	var AppTerminating = 400;
+	var LowMemory = 401;
+	var WillEnterBackground = 402;
+	var DidEnterBackground = 403;
+	var WillEnterForeground = 404;
+	var DidEnterForeground = 405;
 }
 
 @:enum abstract WindowStateChange(Int) {
