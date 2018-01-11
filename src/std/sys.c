@@ -381,7 +381,14 @@ HL_PRIM bool hl_sys_remove_dir( vbyte *path ) {
 	return rmdir((pchar*)path) == 0;
 }
 
-// Pas utilisée dans le jeu
+HL_PRIM int hl_sys_getpid() {
+#ifdef HL_WIN
+	return GetCurrentProcessId();
+#else
+	return getpid();
+#endif
+}
+
 HL_PRIM double hl_sys_cpu_time() {
 #if defined(HL_WIN)
 	FILETIME unused;
@@ -656,3 +663,4 @@ DEFINE_PRIM(_BYTES, sys_full_path, _BYTES);
 DEFINE_PRIM(_BYTES, sys_exe_path, _NO_ARG);
 DEFINE_PRIM(_I32, sys_get_char, _BOOL);
 DEFINE_PRIM(_ARR, sys_args, _NO_ARG);
+DEFINE_PRIM(_I32, sys_getpid, _NO_ARG);

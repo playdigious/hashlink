@@ -182,6 +182,10 @@ typedef wchar_t	uchar;
 #	define utoi(s,end)	wcstol(s,end,10)
 #	define ucmp(a,b)	wcscmp(a,b)
 #	define utostr(out,size,str) wcstombs(out,str,size)
+#elif defined(HL_MAC)
+typedef uint16_t uchar;
+#	undef USTR
+#	define USTR(str)	u##str
 #else
 #	include <stdarg.h>
 // #	include <uchar.h>
@@ -581,15 +585,10 @@ HL_API vdynamic *hl_dyn_call( vclosure *c, vdynamic **args, int nargs );
 
 struct _hl_thread;
 typedef struct _hl_thread hl_thread;
-typedef int_val hl_thread_registers;
 
 HL_API hl_thread *hl_thread_start( void *callback, void *param, bool withGC );
 HL_API hl_thread *hl_thread_current();
 HL_API bool hl_thread_pause( hl_thread *t, bool pause );
-HL_API int hl_thread_context_size();
-HL_API int hl_thread_context_index( const char *name );
-HL_API bool hl_thread_get_context( hl_thread *t, hl_thread_registers *regs );
-HL_API bool hl_thread_set_context( hl_thread *t, hl_thread_registers *regs );
 
 // ----------------------- ALLOC --------------------------------------------------
 
