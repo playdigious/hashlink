@@ -5,8 +5,6 @@ ifndef ARCH
 	ARCH = $(LBITS)
 endif
 
-LIBS=fmt sdl ssl openal ui uv
-
 CFLAGS = -Wall -O3 -I src -msse2 -mfpmath=sse -std=c11 -I include/pcre -D LIBHL_EXPORTS
 LFLAGS = -L. -lhl
 LIBFLAGS =
@@ -86,10 +84,6 @@ ifndef INSTALL_DIR
 INSTALL_DIR=/usr/local
 endif
 
-ifdef MESA
-LIBS += mesa
-endif
-
 all: libhl hl libs
 
 install:
@@ -106,7 +100,7 @@ uninstall:
 	rm -f $(INSTALL_DIR)/bin/hl $(INSTALL_DIR)/lib/libhl.${LIBEXT} $(INSTALL_DIR)/lib/*.hdll
 	rm -f $(INSTALL_DIR)/include/hl.h $(INSTALL_DIR)/include/hlc.h $(INSTALL_DIR)/include/hlc_main.c
 
-libs: $(LIBS)
+libs: fmt sdl ssl openal ui uv
 
 libhl: ${LIB}
 	${CC} -o libhl.$(LIBEXT) -m${ARCH} ${LIBFLAGS} -shared ${LIB} -lpthread -lm
@@ -134,9 +128,6 @@ ui: ${UI} libhl
 
 uv: ${UV} libhl
 	${CC} ${CFLAGS} -shared -o uv.hdll ${UV} ${LIBFLAGS} -L. -lhl -luv
-	
-mesa:
-	(cd libs/mesa && make)
 
 release: release_win release_haxelib
 	
