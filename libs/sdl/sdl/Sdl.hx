@@ -30,6 +30,14 @@ class Sdl {
 	@:hlNative("sdl","get_platform")
 	static function get_platform() return hxd.System.Platform.PC;
 
+	public static function lockFPS(wantedFPS:Int = 30)
+	{
+		return lock_fps(wantedFPS);
+	}
+
+	@:hlNative("sdl","lock_fps")
+	static function lock_fps(wantedFPS:Int) {};
+
 	public static dynamic function onGlContextRetry() {
 		return false;
 	}
