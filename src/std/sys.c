@@ -79,6 +79,7 @@ typedef uchar pchar;
 #include <TargetConditionals.h>
 #if TARGET_OS_IOS || TARGET_OS_TV
 #include <IOS_IO.h>
+#include <iOS_Utils.h>
 #endif
 #endif
 
@@ -135,8 +136,12 @@ HL_PRIM vbyte *hl_sys_locale() {
 	wchar_t loc[LOCALE_NAME_MAX_LENGTH];
 	int len = GetSystemDefaultLocaleName(loc,LOCALE_NAME_MAX_LENGTH);
 	return len == 0 ? NULL : hl_copy_bytes((vbyte*)loc,(len+1)*2);
+#elif TARGET_OS_TV || TARGET_OS_IOS
+	return (vbyte*)getDeviceLanguageCode();
+#elif __ANDROID__
+	return (vbyte*)setlocale(LC_ALL,NULL);
 #else
-	return (vbyte*)setlocale(LC_ALL, NULL);
+	return (vbyte*)setlocale(LC_ALL,NULL);
 #endif
 }
 
