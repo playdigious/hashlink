@@ -23,8 +23,8 @@
 
 #ifdef HL_CONSOLE
 #	include <posix/posix.h>
-#else
-
+#endif
+#if !defined(HL_CONSOLE) || defined(HL_WIN)
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -112,9 +112,10 @@ HL_PRIM bool hl_sys_utf8_path() {
 #endif
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM vbyte *hl_sys_string() {
-#if defined(HL_WIN) || defined(HL_CYGWIN) || defined(HL_MINGW)
+#if defined(HL_CONSOLE)
+	return (vbyte*)sys_platform_name();
+#elif defined(HL_WIN) || defined(HL_CYGWIN) || defined(HL_MINGW)
 	return (vbyte*)USTR("Windows");
 #elif defined(HL_GNUKBSD)
 	return (vbyte*)USTR("GNU/kFreeBSD");
@@ -124,15 +125,19 @@ HL_PRIM vbyte *hl_sys_string() {
 	return (vbyte*)USTR("BSD");
 #elif defined(HL_MAC)
 	return (vbyte*)USTR("Mac");
-#elif defined(HL_CONSOLE)
-	return (vbyte*)sys_platform_name();
+#elif defined(HL_IOS)
+	return (vbyte*)USTR("iOS");
+#elif defined(HL_TVOS)
+	return (vbyte*)USTR("tvOS");
+#elif defined(HL_ANDROID)
+	return (vbyte*)USTR("Android");
 #else
-#error Unknow system string
+#error Unknown system string
 #endif
 }
 
 HL_PRIM vbyte *hl_sys_locale() {
-#ifdef HL_WIN
+#ifdef HL_WIN_DESKTOP
 	wchar_t loc[LOCALE_NAME_MAX_LENGTH];
 	int len = GetSystemDefaultLocaleName(loc,LOCALE_NAME_MAX_LENGTH);
 	return len == 0 ? NULL : hl_copy_bytes((vbyte*)loc,(len+1)*2);
@@ -177,12 +182,10 @@ HL_PRIM double hl_sys_time() {
 #endif
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM vbyte *hl_sys_get_env( vbyte *v ) {
 	return (vbyte*)getenv((pchar*)v);
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_put_env( vbyte *e, vbyte *v ) {
 #if defined(HL_WIN)
 	hl_buffer *b = hl_alloc_buffer();
@@ -200,14 +203,13 @@ HL_PRIM bool hl_sys_put_env( vbyte *e, vbyte *v ) {
 #	define environ (*_NSGetEnviron())
 #endif
 
-#ifdef HL_WIN
+#ifdef HL_WIN_DESKTOP
 #	undef environ
 #	define environ _wenviron
 #else
 extern char **environ;
 #endif
 
-// Pas utilisée dans le jeu
 HL_PRIM varray *hl_sys_env() {
 	varray *a;
 	pchar **e = environ;
@@ -252,7 +254,6 @@ HL_PRIM void hl_sys_sleep( double f ) {
 	hl_blocking(false);
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_set_time_locale( vbyte *l ) {
 #ifdef HL_POSIX
 	locale_t lc, old;
@@ -271,7 +272,7 @@ HL_PRIM bool hl_sys_set_time_locale( vbyte *l ) {
 #endif
 }
 
-// Pas utilisée dans le jeu
+
 HL_PRIM vbyte *hl_sys_get_cwd() {
 	pchar buf[256];
 	int l;
@@ -285,12 +286,10 @@ HL_PRIM vbyte *hl_sys_get_cwd() {
 	return (vbyte*)pstrdup(buf,-1);
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_set_cwd( vbyte *dir ) {
 	return chdir((pchar*)dir) == 0;
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_is64() {
 #ifdef HL_64
 	return true;
@@ -299,7 +298,6 @@ HL_PRIM bool hl_sys_is64() {
 #endif
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM int hl_sys_command( vbyte *cmd ) {
 #if defined(HL_WIN)
 	int ret;
@@ -310,16 +308,16 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 #else
 	int status;
 	hl_blocking(true);
-#if TARGET_OS_IOS || TARGET_OS_TV
-    status = 0;
+#if defined(HL_IOS) || defined(HL_TVOS)
+	status = 0;
+	hl_error("hl_sys_command() not available on this platform");
 #else
-    status = system((pchar*)cmd);
+	status = system((pchar*)cmd);
 #endif
-    hl_blocking(false);
+	hl_blocking(false);
 	return WEXITSTATUS(status) | (WTERMSIG(status) << 8);
 #endif
 }
-
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
 #if TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
@@ -330,17 +328,14 @@ HL_PRIM bool hl_sys_exists( vbyte *path ) {
 #endif
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_delete( vbyte *path ) {
 	return unlink((pchar*)path) == 0;
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_rename( vbyte *path, vbyte *newname ) {
 	return rename((pchar*)path,(pchar*)newname) == 0;
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM varray *hl_sys_stat( vbyte *path ) {
 	pstat s;
 	varray *a;
@@ -363,7 +358,6 @@ HL_PRIM varray *hl_sys_stat( vbyte *path ) {
 	return a;
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_is_dir( vbyte *path ) {
 	pstat s;
 	if( stat((pchar*)path,&s) != 0 )
@@ -381,12 +375,18 @@ HL_PRIM bool hl_sys_create_dir( vbyte *path, int mode ) {
 #endif
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM bool hl_sys_remove_dir( vbyte *path ) {
 	return rmdir((pchar*)path) == 0;
 }
 
-// Pas utilisée dans le jeu
+HL_PRIM int hl_sys_getpid() {
+#ifdef HL_WIN
+	return GetCurrentProcessId();
+#else
+	return getpid();
+#endif
+}
+
 HL_PRIM double hl_sys_cpu_time() {
 #if defined(HL_WIN)
 	FILETIME unused;
@@ -402,7 +402,6 @@ HL_PRIM double hl_sys_cpu_time() {
 #endif
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM double hl_sys_thread_cpu_time() {
 #if defined(HL_WIN)
 	FILETIME unused;
@@ -421,7 +420,6 @@ HL_PRIM double hl_sys_thread_cpu_time() {
 #endif
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM varray *hl_sys_read_dir( vbyte *_path ) {
 	pchar *path = (pchar*)_path;
 	int count = 0;
@@ -501,7 +499,7 @@ HL_PRIM vbyte *hl_sys_full_path( vbyte *path ) {
 	const char sep = '\\';
 	if( GetFullPathNameW((pchar*)path,MAX_PATH+1,out,NULL) == 0 )
 		return NULL;
-	len = ustrlen(out);
+	len = (int)ustrlen(out);
 	i = 0;
 
 	if (len >= 2 && out[1] == ':') {
@@ -552,7 +550,6 @@ HL_PRIM vbyte *hl_sys_full_path( vbyte *path ) {
 #endif
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM vbyte *hl_sys_exe_path() {
 #if defined(HL_WIN)
 	pchar path[MAX_PATH];
@@ -566,7 +563,7 @@ HL_PRIM vbyte *hl_sys_exe_path() {
 		return NULL;
 	return (vbyte*)pstrdup(path,-1);
 #elif defined(HL_CONSOLE)
-	return (vbyte*)sys_exe_path();
+	return sys_exe_path();
 #else
 	const pchar *p = getenv("_");
 	if( p != NULL )
@@ -576,15 +573,14 @@ HL_PRIM vbyte *hl_sys_exe_path() {
 		int length = readlink("/proc/self/exe", path, sizeof(path));
 		if( length < 0 )
 			return NULL;
-	    path[length] = '\0';
+		path[length] = '\0';
 		return (vbyte*)pstrdup(path,-1);
 	}
 #endif
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM int hl_sys_get_char( bool b ) {
-#	if defined(HL_WIN)
+#	if defined(HL_WIN_DESKTOP)
 	return b?getche():getch();
 #	elif defined(HL_CONSOLE)
 	return -1;
@@ -608,7 +604,6 @@ HL_PRIM int hl_sys_get_char( bool b ) {
 static pchar **sys_args;
 static int sys_nargs;
 
-// Pas utilisée dans le jeu
 HL_PRIM varray *hl_sys_args() {
 	varray *a = hl_alloc_array(&hlt_bytes,sys_nargs);
 	int i;
@@ -625,11 +620,17 @@ HL_PRIM void hl_sys_init(void **args, int nargs, void *hlfile) {
 	hl_file = hlfile;
 }
 
-// Pas utilisée dans le jeu
 HL_PRIM vbyte *hl_sys_hl_file() {
 	return hl_file != NULL ? hl_file : hl_sys_exe_path();
 }
 
+#ifndef HL_MOBILE
+const char *hl_sys_special( const char *key ) {
+	 hl_error("Unknown sys_special key");
+	 return NULL;
+}
+DEFINE_PRIM(_BYTES, sys_special, _BYTES);
+#endif
 
 DEFINE_PRIM(_BYTES, sys_hl_file, _NO_ARG);
 DEFINE_PRIM(_BOOL, sys_utf8_path, _NO_ARG);
@@ -661,3 +662,4 @@ DEFINE_PRIM(_BYTES, sys_full_path, _BYTES);
 DEFINE_PRIM(_BYTES, sys_exe_path, _NO_ARG);
 DEFINE_PRIM(_I32, sys_get_char, _BOOL);
 DEFINE_PRIM(_ARR, sys_args, _NO_ARG);
+DEFINE_PRIM(_I32, sys_getpid, _NO_ARG);

@@ -1,6 +1,8 @@
 #define HL_NAME(n) ui_##n
 #include <hl.h>
+#ifndef HL_WIN
 #include <unistd.h>
+#endif
 
 #define wref void
 #define vsentinel void
@@ -57,6 +59,10 @@ HL_PRIM bool HL_NAME(ui_sentinel_is_paused)( vsentinel *s ) {
 HL_PRIM void HL_NAME(ui_close_console)() {
 }
 
+HL_PRIM vbyte *HL_NAME(ui_choose_file)( bool forSave, vdynamic *options ) {
+	return NULL;
+}
+
 #define _WIN _ABSTRACT(ui_window)
 #define _SENTINEL _ABSTRACT(ui_sentinel)
 
@@ -76,3 +82,5 @@ DEFINE_PRIM(_SENTINEL, ui_start_sentinel, _F64 _FUN(_VOID,_NO_ARG));
 DEFINE_PRIM(_VOID, ui_sentinel_tick, _SENTINEL);
 DEFINE_PRIM(_VOID, ui_sentinel_pause, _SENTINEL _BOOL);
 DEFINE_PRIM(_BOOL, ui_sentinel_is_paused, _SENTINEL);
+
+DEFINE_PRIM(_BYTES, ui_choose_file, _BOOL _DYN);

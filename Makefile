@@ -47,6 +47,7 @@ ifeq ($(OS),Windows_NT)
 
 LIBFLAGS += -Wl,--export-all-symbols
 LIBEXT = dll
+RELEASE_NAME=win
 
 ifeq ($(ARCH),32)
 CC=i686-pc-cygwin-gcc
@@ -62,6 +63,7 @@ LIBFLAGS += -L/opt/libjpeg-turbo/lib -L/usr/local/opt/jpeg-turbo/lib -L/usr/loca
 LIBOPENGL = -framework OpenGL
 LIBOPENAL = -lopenal
 LIBSSL = -framework Security -framework CoreFoundation
+RELEASE_NAME = osx
 
 else
 
@@ -77,6 +79,7 @@ LIBFLAGS += -L/opt/libjpeg-turbo/lib64
 endif
 
 LIBOPENAL = -lopenal
+RELEASE_NAME = linux
 
 endif
 
@@ -129,8 +132,15 @@ ui: ${UI} libhl
 uv: ${UV} libhl
 	${CC} ${CFLAGS} -shared -o uv.hdll ${UV} ${LIBFLAGS} -L. -lhl -luv
 
-release: release_win release_haxelib
-	
+release: release_version release_$(RELEASE_NAME)
+
+release_version:
+	$(eval HL_VER := `(hl --version)`-$(RELEASE_NAME))	
+	rm -rf hl-$(HL_VER)
+	mkdir hl-$(HL_VER)
+	mkdir hl-$(HL_VER)/include
+	cp src/hl.h src/hlc* hl-$(HL_VER)/include
+
 release_haxelib:
 	make HLIB=directx release_haxelib_package
 	make HLIB=sdl release_haxelib_package
@@ -151,14 +161,22 @@ release_haxelib_package:
 	rm -rf $(HLIB)_release	
 	
 release_win:
-	rm -rf hl_release
-	mkdir hl_release
-	(cd ReleaseVS2013 && cp hl.exe libhl.dll *.hdll *.lib ../hl_release)
-	cp c:/windows/syswow64/msvcr120.dll hl_release
-	mkdir hl_release/include
-	cp src/hl.h src/hlc* hl_release/include
-	zip -r hl_release.zip hl_release
-	rm -rf hl_release
+	(cd ReleaseVS2013 && cp hl.exe libhl.dll *.hdll *.lib ../hl-$(HL_VER))
+	cp c:/windows/syswow64/msvcr120.dll hl-$(HL_VER)
+	cp `which SDL2.dll` hl-$(HL_VER)
+	cp `which OpenAL32.dll` hl-$(HL_VER)
+	zip -r hl-$(HL_VER).zip hl-$(HL_VER)
+	rm -rf hl-$(HL_VER)
+
+release_linux:
+	cp hl libhl.so *.hdll hl-$(HL_VER)
+	tar -czf hl-$(HL_VER).tgz hl-$(HL_VER)
+	rm -rf hl-$(HL_VER)
+
+release_osx:
+	cp hl libhl.dylib *.hdll hl-$(HL_VER)
+	tar -czf hl-$(HL_VER).tgz hl-$(HL_VER)
+	rm -rf hl-$(HL_VER)
 
 .SUFFIXES : .c .o
 

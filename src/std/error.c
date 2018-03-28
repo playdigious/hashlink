@@ -26,6 +26,10 @@
 #    include <TargetConditionals.h>
 #endif
 
+#ifdef HL_CONSOLE
+#include <posix/posix.h>
+#endif
+
 HL_PRIM hl_trap_ctx *hl_current_trap = NULL;
 HL_PRIM vdynamic *hl_current_exc = NULL;
 HL_PRIM vdynamic **hl_debug_exc = NULL;
@@ -36,7 +40,7 @@ static bool exc_rethrow = false;
 
 HL_PRIM void *hl_fatal_error( const char *msg, const char *file, int line ) {
 	hl_blocking(true);
-#	ifdef _WIN32
+#	ifdef HL_WIN_DESKTOP
     HWND consoleWnd = GetConsoleWindow();
     DWORD pid;
     GetWindowThreadProcessId(consoleWnd, &pid);

@@ -82,6 +82,7 @@ static inline unsigned int TRAILING_ZEROES( unsigned int x ) {
 
 #ifdef HL_DEBUG
 #	define GC_DEBUG
+#	define GC_MEMCHK
 #endif
 
 #define out_of_memory(reason)		hl_fatal("Out of Memory (" reason ")")
@@ -260,7 +261,7 @@ static int PAGE_ID = 0;
 
 HL_API void hl_gc_dump_memory( const char *filename );
 
-static gc_pheader *gc_alloc_new_page( int pid, int block, int size, bool varsize ) {
+static gc_pheader *gc_alloc_new_page( int pid, int block, int size, int kind, bool varsize ) {
 	int m, i;
 	unsigned char *base;
 	gc_pheader *p;
@@ -307,19 +308,23 @@ retry:
 #			else
 			printf("GC Page HASH collide %lX %lX\n",(int_val)GC_GET_PAGE(ptr),(int_val)ptr);
 #			endif
-			return gc_alloc_new_page(pid,block,size,varsize);
+			return gc_alloc_new_page(pid,block,size,kind,varsize);
 		}
 	}
 #endif
 
-#	ifdef GC_DEBUG
+#	if defined(GC_DEBUG)
 	memset(base,0xDD,size);
 	p->page_id = PAGE_ID++;
+#	else
+	// prevent false positive to access invalid type
+	if( kind == MEM_KIND_DYNAMIC ) memset(base, 0, size);
 #	endif
 	if( ((int_val)base) & ((1<<GC_MASK_BITS) - 1) )
 		hl_fatal("Page memory is not correctly aligned");
 	p->page_size = size;
 	p->block_size = block;
+	p->page_kind = kind;
 	p->max_blocks = size / block;
 	p->sizes = NULL;
 	p->bmp = NULL;
@@ -389,10 +394,8 @@ static void *gc_alloc_fixed( int part, int kind ) {
 			break;
 		p = p->next_page;
 	}
-	if( p == NULL ) {
-		p = gc_alloc_new_page(pid, GC_SIZES[part], GC_PAGE_SIZE, false);
-		p->page_kind = kind;
-	}
+	if( p == NULL )
+		p = gc_alloc_new_page(pid, GC_SIZES[part], GC_PAGE_SIZE, kind, false);
 alloc_fixed:
 	ptr = (unsigned char*)p + p->next_block * p->block_size;
 #	ifdef GC_DEBUG
@@ -487,8 +490,7 @@ skip:
 		int psize = GC_PAGE_SIZE;
 		while( psize < size + 1024 )
 			psize <<= 1;
-		p = gc_alloc_new_page(pid, GC_SIZES[part], psize, true);
-		p->page_kind = kind;
+		p = gc_alloc_new_page(pid, GC_SIZES[part], psize, kind, true);
 	}
 alloc_var:
 	ptr = (unsigned char*)p + p->next_block * p->block_size;
@@ -583,19 +585,24 @@ void *hl_gc_alloc_gen( hl_type *t, int size, int flags ) {
 	if( alloc_all > alloc_end ) out_of_memory("bump");
 #else
 	gc_check_mark();
+#	ifdef GC_MEMCHK
+	size += HL_WSIZE;
+#	endif
 	if( gc_flags & GC_PROFILE ) time = TIMESTAMP();
 	ptr = gc_alloc_gen(size, flags, &allocated);
 	if( gc_flags & GC_PROFILE ) gc_stats.alloc_time += TIMESTAMP() - time;
 #	ifdef GC_DEBUG
 	memset(ptr,0xCD,allocated);
 #	endif
-#endif
 	if( flags & MEM_ZERO )
 		MZERO(ptr,allocated);
 	else if( MEM_HAS_PTR(flags) && allocated != size )
 		MZERO((char*)ptr+size,allocated-size); // erase possible pointers after data
 	if( (gc_flags & GC_TRACK) && gc_track_callback )
 		((void (*)(hl_type *,int,int,void*))gc_track_callback)(t,size,flags,ptr);
+#	ifdef GC_MEMCHK
+	memset((char*)ptr+(allocated - HL_WSIZE),0xEE,HL_WSIZE);
+#	endif
 	return ptr;
 }
 
@@ -718,6 +725,18 @@ static void gc_clear_unmarked_mem() {
 			int bid;
 			for(bid=p->first_block;bid<p->max_blocks;bid++) {
 				if( p->sizes && !p->sizes[bid] ) continue;
+				int size = p->sizes ? p->sizes[bid] * p->block_size : p->block_size;
+				unsigned char *ptr = (unsigned char*)p + bid * p->block_size;
+				if( bid * p->block_size + size > p->page_size ) hl_fatal("invalid block size");
+#				ifdef GC_MEMCHK
+				int_val eob = *(int_val*)(ptr + size - HL_WSIZE);
+#				ifdef HL_64
+				if( eob != 0xEEEEEEEEEEEEEEEE && eob != 0xDDDDDDDDDDDDDDDD )
+#				else
+				if( eob != 0xEEEEEEEE && eob != 0xDDDDDDDD )
+#				endif
+					hl_fatal("Block written out of bounds");
+#				endif
 				if( (p->bmp[bid>>3] & (1<<(bid&7))) == 0 ) {
 					int size = p->sizes ? p->sizes[bid] * p->block_size : p->block_size;
 					unsigned char *ptr = (unsigned char*)p + bid * p->block_size;
@@ -1202,6 +1221,10 @@ HL_API void hl_gc_dump_memory( const char *filename ) {
 	fdump = NULL;
 }
 
+HL_API vdynamic *hl_debug_call( int mode, vdynamic *v ) {
+	return NULL;
+}
+
 DEFINE_PRIM(_VOID, gc_major, _NO_ARG);
 DEFINE_PRIM(_VOID, gc_enable, _BOOL);
 DEFINE_PRIM(_VOID, gc_profile, _BOOL);
@@ -1209,3 +1232,5 @@ DEFINE_PRIM(_VOID, gc_stats, _REF(_F64) _REF(_F64) _REF(_F64));
 DEFINE_PRIM(_VOID, gc_dump_memory, _BYTES);
 DEFINE_PRIM(_I32, gc_get_flags, _NO_ARG);
 DEFINE_PRIM(_VOID, gc_set_flags, _I32);
+DEFINE_PRIM(_DYN, debug_call, _I32 _DYN);
+

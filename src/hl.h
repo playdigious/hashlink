@@ -27,19 +27,37 @@
 	https://github.com/HaxeFoundation/hashlink/wiki/
 **/
 
-#define HL_VERSION	0x140
+#define HL_VERSION	0x150
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #	define HL_WIN
+#	ifndef _DURANGO
+#		define HL_WIN_DESKTOP
+#	endif
 #endif
 
 #if defined(__APPLE__) || defined(__MACH__) || defined(macintosh)
-#	define HL_MAC
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS
+#define HL_IOS
+#elif TARGET_OS_TV
+#define HL_TVOS
+#elif TARGET_OS_MAC
+#define HL_MAC
+#endif
+#endif
+
+#ifdef __ANDROID__
+#	define HL_ANDROID
 #endif
 
 #if defined(linux) || defined(__linux__)
 #	define HL_LINUX
 #	define _GNU_SOURCE
+#endif
+
+#if defined(HL_IOS) || defined(HL_ANDROID) || defined(HL_TVOS)
+#	define HL_MOBILE
 #endif
 
 #ifdef __ORBIS__
@@ -50,7 +68,11 @@
 #	define HL_NX
 #endif
 
-#if defined(HL_PS) || defined(HL_NX)
+#ifdef _DURANGO
+#	define HL_XBO
+#endif
+
+#if defined(HL_PS) || defined(HL_NX) || defined(HL_XBO)
 #	define HL_CONSOLE
 #endif
 
@@ -168,7 +190,11 @@ typedef unsigned long long uint64;
 // -------------- UNICODE -----------------------------------
 
 #if defined(HL_WIN) && !defined(HL_LLVM)
-#	include <windows.h>
+#ifdef HL_WIN_DESKTOP
+#	include <Windows.h>
+#else
+#	include <xdk.h>
+#endif
 #	include <wchar.h>
 typedef wchar_t	uchar;
 #	define USTR(str)	L##str
@@ -184,12 +210,14 @@ typedef wchar_t	uchar;
 #	define utostr(out,size,str) wcstombs(out,str,size)
 #else
 #	include <stdarg.h>
-// #	include <uchar.h>
+#if defined(HL_IOS) || defined(HL_TVOS) || defined(HL_MAC)
 #include <stddef.h>
 #include <stdint.h>
-
 typedef uint16_t char16_t;
 typedef uint32_t char32_t;
+#else
+#	include <uchar.h>
+#endif
 typedef char16_t uchar;
 #	undef USTR
 #	define USTR(str)	u##str
@@ -213,6 +241,10 @@ C_FUNCTION_END
 #	define hl_debug_break()	if( IsDebuggerPresent() ) __debugbreak()
 #elif defined(HL_PS)
 #	define hl_debug_break()	__debugbreak()
+#elif defined(HL_NX)
+C_FUNCTION_BEGIN
+HL_API void hl_debug_break( void );
+C_FUNCTION_END
 #elif defined(HL_LINUX) && defined(__i386__)
 #	ifdef HL_64
 #	define hl_debug_break() \
@@ -693,11 +725,19 @@ typedef struct {
 #		define DEFINE_PRIM_WITH_NAME(t,name,args,realName)
 #	endif
 #elif defined(LIBHL_STATIC)
-#define	HL_PRIM
+#	ifdef __cplusplus
+#		define	HL_PRIM				extern "C" 
+#	else
+#		define	HL_PRIM				
+#	endif
 #define DEFINE_PRIM_WITH_NAME(t,name,args,realName)
 #else
-#define	HL_PRIM						EXPORT
-#define DEFINE_PRIM_WITH_NAME		_DEFINE_PRIM_WITH_NAME
+#	ifdef __cplusplus
+#		define	HL_PRIM				extern "C" EXPORT
+#	else
+#		define	HL_PRIM				EXPORT
+#	endif
+#	define DEFINE_PRIM_WITH_NAME	_DEFINE_PRIM_WITH_NAME
 #endif
 
 // -------------- EXTRA ------------------------------------

@@ -22,7 +22,11 @@
 #include <hlc.h>
 #include <SDL_main.h>
 
-#ifdef _WIN32
+#if defined(HL_MOBILE) && defined(sdl__Sdl__val)
+#   include <SDL_main.h>
+#endif
+
+#ifdef HL_WIN_DESKTOP
 #	pragma warning(disable:4091)
 #	include <DbgHelp.h>
 #	pragma comment(lib, "Dbghelp.lib")
@@ -48,7 +52,7 @@ HL_API const char *util_address_to_name(void* adress);
 #endif
 
 static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
-#ifdef _WIN32
+#ifdef HL_WIN_DESKTOP
 	static HANDLE stack_process_handle = NULL;
 	DWORD64 index;
 	IMAGEHLP_LINEW64 line;
@@ -83,7 +87,7 @@ static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
 
 static int hlc_capture_stack( void **stack, int size ) {
 	int count = 0;
-#	ifdef _WIN32
+#	ifdef HL_WIN_DESKTOP
 	count = CaptureStackBackTrace(2, size, stack, NULL) - 8; // 8 startup
 	if( count < 0 ) count = 0;
 #	endif
@@ -94,18 +98,22 @@ static int hlc_capture_stack( void **stack, int size ) {
 	return count;
 }
 
-#ifdef HL_VCC
+#if defined( HL_VCC )
 static int throw_handler( int code ) {
+	#if !defined(HL_XBO)
 	switch( code ) {
 	case EXCEPTION_ACCESS_VIOLATION: hl_error("Access violation");
 	case EXCEPTION_STACK_OVERFLOW: hl_error("Stack overflow");
 	default: hl_error("Unknown runtime error");
 	}
 	return EXCEPTION_CONTINUE_SEARCH;
+	#else
+	return 0;
+	#endif
 }
 #endif
 
-#ifdef HL_WIN
+#ifdef HL_WIN_DESKTOP
 int wmain(int argc, uchar *argv[]) {
 #else
 int main(int argc, char *argv[]) {
