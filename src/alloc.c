@@ -570,40 +570,29 @@ static unsigned char *alloc_end = NULL;
 #endif
 
 void *hl_gc_alloc_gen( hl_type *t, int size, int flags ) {
-	void *ptr;
-	int time = 0;
-	int allocated = 0;
-#ifdef HL_BUMP_ALLOC
-	if( !alloc_all ) {
-		int tot = 3<<29;
-		alloc_all = gc_alloc_page_memory(tot);
-		if( !alloc_all ) hl_fatal("Failed to allocate bump memory");
-		alloc_end = alloc_all + tot;
-	}
-	ptr = alloc_all;
-	alloc_all += size;
-	if( alloc_all > alloc_end ) out_of_memory("bump");
-#else
-	gc_check_mark();
-#	ifdef GC_MEMCHK
-	size += HL_WSIZE;
-#	endif
-	if( gc_flags & GC_PROFILE ) time = TIMESTAMP();
-	ptr = gc_alloc_gen(size, flags, &allocated);
-	if( gc_flags & GC_PROFILE ) gc_stats.alloc_time += TIMESTAMP() - time;
-#	ifdef GC_DEBUG
-	memset(ptr,0xCD,allocated);
-#	endif
-	if( flags & MEM_ZERO )
-		MZERO(ptr,allocated);
-	else if( MEM_HAS_PTR(flags) && allocated != size )
-		MZERO((char*)ptr+size,allocated-size); // erase possible pointers after data
-	if( (gc_flags & GC_TRACK) && gc_track_callback )
-		((void (*)(hl_type *,int,int,void*))gc_track_callback)(t,size,flags,ptr);
-#	ifdef GC_MEMCHK
-	memset((char*)ptr+(allocated - HL_WSIZE),0xEE,HL_WSIZE);
-#	endif
-	return ptr;
+	    void *ptr;
+    int time = 0;
+    int allocated = 0;
+    gc_check_mark();
+#    ifdef GC_MEMCHK
+    size += HL_WSIZE;
+#    endif
+    if( gc_flags & GC_PROFILE ) time = TIMESTAMP();
+    ptr = gc_alloc_gen(size, flags, &allocated);
+    if( gc_flags & GC_PROFILE ) gc_stats.alloc_time += TIMESTAMP() - time;
+#    ifdef GC_DEBUG
+    memset(ptr,0xCD,allocated);
+#    endif
+    if( flags & MEM_ZERO )
+        MZERO(ptr,allocated);
+    else if( MEM_HAS_PTR(flags) && allocated != size )
+        MZERO((char*)ptr+size,allocated-size); // erase possible pointers after data
+    if( (gc_flags & GC_TRACK) && gc_track_callback )
+        ((void (*)(hl_type *,int,int,void*))gc_track_callback)(t,size,flags,ptr);
+#    ifdef GC_MEMCHK
+    memset((char*)ptr+(allocated - HL_WSIZE),0xEE,HL_WSIZE);
+#    endif
+    return ptr;
 }
 
 // -------------------------  MARKING ----------------------------------------------------------
