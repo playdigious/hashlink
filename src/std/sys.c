@@ -144,7 +144,7 @@ HL_PRIM vbyte *hl_sys_locale() {
 #elif TARGET_OS_TV || TARGET_OS_IOS
 	return (vbyte*)getDeviceLanguageCode();
 #elif __ANDROID__
-	return (vbyte*)setlocale(LC_ALL,NULL);
+	return (vbyte *) hl_to_utf16(getLocaleLanguage());
 #else
 	return (vbyte*)setlocale(LC_ALL,NULL);
 #endif
