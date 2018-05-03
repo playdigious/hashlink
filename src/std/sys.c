@@ -320,8 +320,15 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 }
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
-#if TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
+#if TARGET_OS_IOS || TARGET_OS_TV
 	return exists(path);
+#elif __ANDROID__
+	pstat st;
+	if(stat((pchar*)getDocumentPath(path),&st) == 0)
+	{
+		return true;
+	}
+	return stat((pchar*)getResourcePath(path),&st) == 0;
 #else
 	pstat st;
 	return stat((pchar*)path,&st) == 0;
@@ -368,8 +375,10 @@ HL_PRIM bool hl_sys_is_dir( vbyte *path ) {
 HL_PRIM bool hl_sys_create_dir( vbyte *path, int mode ) {
 #if defined(HL_PS)
 	return false;
-#elif TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
+#elif TARGET_OS_IOS || TARGET_OS_TV
 	return createDir(path, mode) == 0;
+#elif __ANDROID__
+	return mkdir((pchar*)getDocumentPath(path),mode) == 0;
 #else
 	return mkdir((pchar*)path,mode) == 0;
 #endif
