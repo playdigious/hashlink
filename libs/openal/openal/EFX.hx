@@ -212,8 +212,6 @@ extern class EFX {
 	public static inline var FILTER_HIGHPASS                       = 0x0002;
 	public static inline var FILTER_BANDPASS                       = 0x0003;
 
-	#if !mobile
-
 	public static function genEffects    (n : Int, effects : hl.Bytes) : Void;
 	public static function deleteEffects (n : Int, effects : hl.Bytes) : Void;
 	public static function isEffect      (effect : Effect) : Bool;
@@ -249,5 +247,4 @@ extern class EFX {
 	public static function getAuxiliaryEffectSlotiv   (effectslot : EffectSlot, param : Int, piValues  : hl.Bytes)  : Void;
 	public static function getAuxiliaryEffectSlotf    (effectslot : EffectSlot, param : Int) : hl.F32;
 	public static function getAuxiliaryEffectSlotfv   (effectslot : EffectSlot, param : Int, pflValues : hl.Bytes)  : Void;
-	#end
 }
