@@ -90,7 +90,7 @@ HL_PRIM void hl_set_error_handler( vclosure *d ) {
 }
 
 #if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS) || __ANDROID__
-extern void util_report_crash_without_callstack(vbyte* error);
+//extern void util_report_crash_without_callstack(vbyte* error);
 #endif
 
 HL_PRIM void hl_throw( vdynamic *v ) {
@@ -100,7 +100,7 @@ HL_PRIM void hl_throw( vdynamic *v ) {
 	else
 		stack_count = capture_stack_func(stack_trace, 0x1000);
 #if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS) || __ANDROID__
-	util_report_crash_without_callstack(hl_to_string(v));
+	//util_report_crash_without_callstack(hl_to_string(v));
 #endif
 	hl_current_exc = v;
 	hl_current_trap = t->prev;
