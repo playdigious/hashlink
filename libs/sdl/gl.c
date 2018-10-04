@@ -37,6 +37,12 @@
 #	include <GL/glext.h>
 #endif
 
+#ifdef _WIN32
+#include <SDL_syswm.h>
+#else
+#include <SDL2/SDL_syswm.h>
+#endif
+
 #if !defined(HL_CONSOLE) && !defined(HL_MESA)
 #define GL_IMPORT(fun, t) PFNGL##t##PROC fun
 #include "GLImports.h"
@@ -335,8 +341,6 @@ HL_PRIM int HL_NAME(gl_get_attrib_location)( vdynamic *p, vstring *name ) {
 	//printf("gl_get_attrib_location%d,%d,%s \n",loc,p->v.i,cname);
 	return loc;
 }
-
-#include <SDL2/SDL_syswm.h>
 
 HL_PRIM void HL_NAME(gl_use_program)( vdynamic *p ) {
 	//printf("gl_use_program%d \n",ZIDX(p));
