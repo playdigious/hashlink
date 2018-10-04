@@ -1,4 +1,4 @@
-#ifndef __APPLE__
+#if !(defined( __APPLE__ ) || defined( __ANDROID__ ))
 GL_IMPORT(glCreateProgram, CREATEPROGRAM);
 GL_IMPORT(glDeleteProgram, DELETEPROGRAM);
 GL_IMPORT(glLinkProgram, LINKPROGRAM);

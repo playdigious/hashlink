@@ -20,8 +20,6 @@
 #endif
 
 #ifdef HL_ANDROID
-#	include <android/log.h>
-#   include <Android_Utils.h>
 #   include <GLES/gl.h>
 #   include <SDL_joystick.h>
 #   include "SDLCustomEvent.h"
@@ -136,9 +134,7 @@ HL_PRIM bool HL_NAME(init_once)() {
 #endif
 	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-#ifdef HL_ANDROID
-		__android_log_print(ANDROID_LOG_DEBUG, "USEFUL", "%s", SDL_GetError());
-#else
+#ifndef HL_ANDROID
 		hl_error_msg(USTR("SDL_Init failed: %s"), hl_to_utf16(SDL_GetError()));
 #endif
 		return false;
@@ -752,7 +748,6 @@ HL_PRIM SDL_GameController *HL_NAME(gctrl_open)(int idx) {
 	free(joystickControls);
 	if (SDL_IsGameController(idx))
 		return SDL_GameControllerOpen(idx);
-	LOG_ANDROID("Pas de controller trouvé, pas normal.");
 #endif
 	return NULL;
 }
