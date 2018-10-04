@@ -35,7 +35,7 @@ extern SDL_Window *Android_Window;
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "SDLCustomEvent.h"
-#import "math.h"
+#include "math.h"
 
 typedef enum {
 	_IOS,
