@@ -336,7 +336,11 @@ HL_PRIM bool hl_sys_exists( vbyte *path ) {
 }
 
 HL_PRIM bool hl_sys_delete( vbyte *path ) {
+#if TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
+	return unlink((pchar*)getDocumentPath(path)) == 0;
+#else
 	return unlink((pchar*)path) == 0;
+#endif
 }
 
 HL_PRIM bool hl_sys_rename( vbyte *path, vbyte *newname ) {
