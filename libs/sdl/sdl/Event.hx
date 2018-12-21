@@ -13,6 +13,8 @@ package sdl;
 	public var keyRepeat : Bool;
 	public var controller : Int;
 	public var value : Int;
+	public var fingerX : Single;
+	public var fingerY : Single;
 	public var fingerIdHigh : Int;
 	public var fingerIdLow : Int;
 	public var saveName : hl.Bytes;
