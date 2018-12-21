@@ -113,6 +113,8 @@ typedef struct {
 	bool keyRepeat;
 	int controller;
 	int value;
+	float fingerX;
+	float fingerY;
 	int fingerIdHigh;
 	int fingerIdLow;
 	const char * saveName;
@@ -243,22 +245,22 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
                     continue;
 			case SDL_FINGERDOWN:
 				event->type = TouchDown;
-				event->mouseX = e.tfinger.x*100;
-				event->mouseY = e.tfinger.y*100;
+				event->fingerX = e.tfinger.x;
+				event->fingerY = e.tfinger.y;
 				event->fingerIdLow = e.tfinger.fingerId & 0xffffffff;
 				event->fingerIdHigh = (e.tfinger.fingerId >> 32);
 				break;
 			case SDL_FINGERMOTION:
 				event->type = TouchMove;
-				event->mouseX = e.tfinger.x*100;
-				event->mouseY = e.tfinger.y*100;
+				event->fingerX = e.tfinger.x;
+				event->fingerY = e.tfinger.y;
 				event->fingerIdLow = e.tfinger.fingerId & 0xffffffff;
 				event->fingerIdHigh = (e.tfinger.fingerId >> 32);
 				break;
 			case SDL_FINGERUP:
 				event->type = TouchUp;
-				event->mouseX = e.tfinger.x*100;
-				event->mouseY = e.tfinger.y*100;
+				event->fingerX = e.tfinger.x;
+				event->fingerY = e.tfinger.y;
 				event->fingerIdLow = e.tfinger.fingerId & 0xffffffff;
 				event->fingerIdHigh = (e.tfinger.fingerId >> 32);
 				break;
