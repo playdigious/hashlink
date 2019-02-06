@@ -1,17 +1,17 @@
 #define HL_NAME(n) sdl_##n
 #include <hl.h>
-#include <stdarg.h>
 
 #if defined(HL_IOS) || defined (HL_TVOS)
 #	include <SDL2/SDL.h>
 #	include <SDL2/SDL_syswm.h>
 #	include <OpenGLES/ES3/gl.h>
-#	define glBindFragDataLocation(...)
-#	define glGetQueryObjectiv glGetQueryObjectuiv
-#	define glClearDepth glClearDepthf
+#	define HL_GLES
 #elif defined(HL_MAC)
 #	include <SDL2/SDL.h>
 #	include <OpenGL/gl3.h>
+#	define glBindImageTexture(...) hl_error("Not supported on OSX")
+#	define glDispatchCompute(...) hl_error("Not supported on OSX")
+#	define glMemoryBarrier(...) hl_error("Not supported on OSX")
 #elif defined(_WIN32)
 #	include <SDL.h>
 #	include <GL/GLU.h>
@@ -21,29 +21,33 @@
 #elif defined(HL_MESA)
 # 	include <GLES3/gl3.h>
 #	include <GL/osmesa.h>
-#	define GL_IMPORT(fun, t)
-#	define glBindFragDataLocation(...)
-#	define glGetQueryObjectiv glGetQueryObjectuiv
+#	define HL_GLES
 #elif defined(HL_ANDROID)
 #	include <SDL.h>
 #	include <GLES3/gl3.h>
 #	include <GLES3/gl3ext.h>
-#	define glBindFragDataLocation(...)
-#	define glGetQueryObjectiv glGetQueryObjectuiv
-#	define glClearDepth glClearDepthf
+#	define HL_GLES
 #else
 #	include <SDL2/SDL.h>
 #	include <GL/glu.h>
 #	include <GL/glext.h>
 #endif
 
-#ifdef _WIN32
-#include <SDL_syswm.h>
-#else
-#include <SDL2/SDL_syswm.h>
+#ifdef HL_GLES
+#	define GL_IMPORT(fun, t)
+#	define ES_NOT_SUPPORTED hl_error("Not supported by GLES3")
+#	define glBindFragDataLocation(...) ES_NOT_SUPPORTED
+#	define glBindImageTexture(...) ES_NOT_SUPPORTED
+#	define glTexImage2DMultisample(...) ES_NOT_SUPPORTED
+#	define glFramebufferTexture(...) ES_NOT_SUPPORTED
+#	define glDispatchCompute(...) ES_NOT_SUPPORTED
+#	define glMemoryBarrier(...) ES_NOT_SUPPORTED
+#	define glPolygonMode(face,mode) if( mode != 0x1B02 ) ES_NOT_SUPPORTED
+#	define glGetQueryObjectiv glGetQueryObjectuiv
+#	define glClearDepth glClearDepthf
 #endif
 
-#if !defined(HL_CONSOLE) && !defined(HL_MESA)
+#if !defined(HL_CONSOLE) && !defined(GL_IMPORT)
 #define GL_IMPORT(fun, t) PFNGL##t##PROC fun
 #include "GLImports.h"
 #undef GL_IMPORT
@@ -55,47 +59,10 @@ static int GLLoadAPI() {
 	return 0;
 }
 
-//#define GL_LOG 1
-
-#ifdef GL_LOG
-//#	define GLOG(fmt,...)	if( gl_log_active ) fprintf(gl_log_out, __FUNCTION__ "(" fmt ")\n", __VA_ARGS__)
-//#	define GLOGR(ret,v,fmt,...)	if( gl_log_active ) fprintf(gl_log_out, __FUNCTION__ "(" fmt ") = " ret "\n", __VA_ARGS__, v)
-
-#	define GLOG(...) printf(__VA_ARGS__)
-#	define GLOGR(...) printf(__VA_ARGS__)
-
-
-static FILE *gl_log_out;
-static bool gl_log_active = true;
-
-static char *hexlog( vbyte *b, int size ) {
-	static char tmp[1024];
-	static const char *HEX = "0123456789ABCDEF";
-	int pos = 0;
-	if( b == NULL )
-		return "NULL";
-	if( size >= (sizeof(tmp)>>1) ) size = (sizeof(tmp)>>1) - 1;
-	while( size-- ) {
-		unsigned char c = *b++;
-		tmp[pos++] = HEX[c>>4];
-		tmp[pos++] = HEX[c&15];
-	}
-	tmp[pos] = 0;
-	return tmp;
-}
-
-#else
-#	define GLOG(...)
-#	define GLOGR(...)
-#endif
-
 #define ZIDX(val) ((val)?(val)->v.i:0)
 
 // globals
 HL_PRIM bool HL_NAME(gl_init)() {
-#	ifdef GL_LOG
-	gl_log_out = fopen("gllog.txt","wb");
-#	endif
 	return GLLoadAPI() == 0;
 }
 
@@ -105,51 +72,32 @@ HL_PRIM bool HL_NAME(gl_is_context_lost)() {
 	return false;
 }
 
-HL_PRIM int HL_NAME(gl_get_error)();
-
 HL_PRIM void HL_NAME(gl_clear)( int bits ) {
-	//printf("gl_clear%d \n",bits);
 	glClear(bits);
-	sdl_gl_get_error();
 }
 
 HL_PRIM int HL_NAME(gl_get_error)() {
-	/*glFlush();
-	uint error = glGetError();
-	if(error != GL_NO_ERROR)
-		printf("gl get error : %d \n", error);
-	return error;*/
-    return 0;
+	return glGetError();
 }
 
 HL_PRIM void HL_NAME(gl_scissor)( int x, int y, int width, int height ) {
-	//printf("gl_scissor%d,%d,%d,%d \n",x,y,width,height);
 	glScissor(x, y, width, height);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_clear_color)( double r, double g, double b, double a ) {
-	//printf("gl_clear_color%g,%g,%g,%g \n",r,g,b,a);
 	glClearColor((float)r, (float)g, (float)b, (float)a);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_clear_depth)( double value ) {
-	//printf("gl_clear_depth%g \n",value);
-	glClearDepthf(value);
-	sdl_gl_get_error();
+	glClearDepth(value);
 }
 
 HL_PRIM void HL_NAME(gl_clear_stencil)( int value ) {
-	//printf("gl_clear_stencil%d \n",value);
 	glClearStencil(value);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_viewport)( int x, int y, int width, int height ) {
-	//printf("gl_viewport%d,%d,%d,%d \n",x,y,width,height);
 	glViewport(x, y, width, height);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_flush)() {
@@ -157,22 +105,14 @@ HL_PRIM void HL_NAME(gl_flush)() {
 }
 
 HL_PRIM void HL_NAME(gl_finish)() {
-	//printf("gl_finish \n");
-#	ifdef GL_LOG
-	fflush(gl_log_out);
-#	endif
 	glFinish();
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_pixel_storei)( int key, int value ) {
-	//printf("gl_pixel_storei%d,%d \n",key,value);
 	glPixelStorei(key, value);
-	sdl_gl_get_error();
 }
 
 HL_PRIM vbyte *HL_NAME(gl_get_string)(int name) {
-	//printf("gl_get_string%d \n", name);
 	return (vbyte*)glGetString(name);
 }
 
@@ -183,81 +123,55 @@ HL_PRIM void HL_NAME(gl_polygon_mode)(int face, int mode) {
 }
 
 HL_PRIM void HL_NAME(gl_enable)( int feature ) {
-	//printf("glEnable %d \n",feature);
 	glEnable(feature);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_disable)( int feature ) {
-	//printf("gl_disable %d \n",feature);
 	glDisable(feature);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_cull_face)( int face ) {
-	//printf("gl_cull_face %d \n",face);
 	glCullFace(face);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_blend_func)( int src, int dst ) {
-	//printf("gl_blend_func%d,%d \n",src,dst);
 	glBlendFunc(src, dst);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_blend_func_separate)( int src, int dst, int alphaSrc, int alphaDst ) {
-	//printf("gl_blend_func_separate%d,%d,%d,%d \n",src,dst,alphaSrc,alphaDst);
 	glBlendFuncSeparate(src, dst, alphaSrc, alphaDst);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_blend_equation)( int op ) {
-	//printf("gl_blend_equation%d \n",op);
 	glBlendEquation(op);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_blend_equation_separate)( int op, int alphaOp ) {
-	//printf("gl_blend_equation_separate%d,%d \n",op,alphaOp);
 	glBlendEquationSeparate(op, alphaOp);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_depth_mask)( bool mask ) {
-	//printf("gl_depth_mask%d \n",mask);
 	glDepthMask(mask);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_depth_func)( int f ) {
-	//printf("gl_depth_func%d \n",f);
 	glDepthFunc(f);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_color_mask)( bool r, bool g, bool b, bool a ) {
-	//printf("gl_color_mask%d,%d,%d,%d \n",r,g,b,a);
 	glColorMask(r, g, b, a);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_stencil_mask_separate)(int face, int mask) {
-	//printf("gl_stencil_mask_separate%d,%d \n",face,mask);
 	glStencilMaskSeparate(face, mask);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_stencil_func_separate)(int face, int func, int ref, int mask ) {
-	//printf("gl_stencil_func_separate%d,%d,%d,%d \n",face,func,ref,mask);
 	glStencilFuncSeparate(face, func, ref, mask);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_stencil_op_separate)(int face, int sfail, int dpfail, int dppass) {
-	//printf("gl_stencil_op_separate%d,%d,%d,%d \n",face,sfail,dpfail,dppass);
 	glStencilOpSeparate(face, sfail, dpfail, dppass);
-	sdl_gl_get_error();
 }
 
 // program
@@ -271,34 +185,25 @@ static vdynamic *alloc_i32(int v) {
 
 HL_PRIM vdynamic *HL_NAME(gl_create_program)() {
 	int v = glCreateProgram();
-	sdl_gl_get_error();
-	//printf("gl_create_program%d \n",v);
 	if( v == 0 ) return NULL;
 	return alloc_i32(v);
 }
 
 HL_PRIM void HL_NAME(gl_delete_program)( vdynamic *s ) {
-	//printf("gl_delete_program%d \n",s->v.i);
 	glDeleteProgram(s->v.i);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_bind_frag_data_location)( vdynamic *p, int colNum, vstring *name ) {
 	char *cname = hl_to_utf8(name->bytes);
-	//printf("gl_bind_frag_data_location%d,%d,%n \n",p->v.i,colNum,cname);
-	//glBindFragDataLocation(p->v.i, colNum, cname);
+	glBindFragDataLocation(p->v.i, colNum, cname);
 }
 
 HL_PRIM void HL_NAME(gl_attach_shader)( vdynamic *p, vdynamic *s ) {
-	//printf("gl_attach_shader%d,%d \n",p->v.i,s->v.i);
 	glAttachShader(p->v.i, s->v.i);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_link_program)( vdynamic *p ) {
-	//printf("gl_link_program%d \n",p->v.i);
 	glLinkProgram(p->v.i);
-	sdl_gl_get_error();
 }
 
 HL_PRIM vdynamic *HL_NAME(gl_get_program_parameter)( vdynamic *p, int param ) {
@@ -306,12 +211,10 @@ HL_PRIM vdynamic *HL_NAME(gl_get_program_parameter)( vdynamic *p, int param ) {
 	case 0x8B82 /*LINK_STATUS*/ : {
 		int ret = 0;
 		glGetProgramiv(p->v.i, param, &ret);
-		sdl_gl_get_error();
-		//printf("gl_get_program_parameter%d,%d,%d \n",ret,p->v.i,param);
 		return alloc_i32(ret);
 	}
 	default:
-		hl_error_msg(USTR("Unsupported param %d"),param);
+		hl_error("Unsupported param %d",param);
 	}
 	return NULL;
 }
@@ -320,63 +223,46 @@ HL_PRIM vbyte *HL_NAME(gl_get_program_info_bytes)( vdynamic *p ) {
 	char log[4096];
 	*log = 0;
 	glGetProgramInfoLog(p->v.i, 4096, NULL, log);
-	sdl_gl_get_error();
-	//printf("gl_get_program_info_bytes%s,%d \n",log,p->v.i);
 	return hl_copy_bytes((vbyte*)log,(int)strlen(log) + 1);
 }
 
 HL_PRIM vdynamic *HL_NAME(gl_get_uniform_location)( vdynamic *p, vstring *name ) {
 	char *cname = hl_to_utf8(name->bytes);
 	int u = glGetUniformLocation(p->v.i, cname);
-	sdl_gl_get_error();
-	//printf("gl_get_uniform_location%d,%d,%s \n",u,p->v.i,cname);
 	if( u < 0 ) return NULL;
 	return alloc_i32(u);
 }
 
 HL_PRIM int HL_NAME(gl_get_attrib_location)( vdynamic *p, vstring *name ) {
 	char *cname = hl_to_utf8(name->bytes);
-	int loc = glGetAttribLocation(p->v.i, cname);
-	sdl_gl_get_error();
-	//printf("gl_get_attrib_location%d,%d,%s \n",loc,p->v.i,cname);
-	return loc;
+	return glGetAttribLocation(p->v.i, cname);
 }
 
 HL_PRIM void HL_NAME(gl_use_program)( vdynamic *p ) {
-	//printf("gl_use_program%d \n",ZIDX(p));
-    glUseProgram(ZIDX(p));
-	sdl_gl_get_error();
+	glUseProgram(ZIDX(p));
 }
 
 // shader
 
 HL_PRIM vdynamic *HL_NAME(gl_create_shader)( int type ) {
 	int s = glCreateShader(type);
-	sdl_gl_get_error();
-	//printf("gl_create_shader%d,%d \n",s,type);
 	if (s == 0) return NULL;
 	return alloc_i32(s);
 }
 
 HL_PRIM void HL_NAME(gl_shader_source)( vdynamic *s, vstring *src ) {
 	const GLchar *c = (GLchar*)hl_to_utf8(src->bytes);
-	//printf("gl_shader_source%d,%s \n",s->v.i,c);
 	glShaderSource(s->v.i, 1, &c, NULL);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_compile_shader)( vdynamic *s ) {
-	//printf("gl_compile_shader%d \n",s->v.i);
 	glCompileShader(s->v.i);
-	sdl_gl_get_error();
 }
 
 HL_PRIM vbyte *HL_NAME(gl_get_shader_info_bytes)( vdynamic *s ) {
 	char log[4096];
 	*log = 0;
 	glGetShaderInfoLog(s->v.i, 4096, NULL, log);
-	sdl_gl_get_error();
-	//printf("gl_get_shader_info_bytes%s,%d \n",log,s->v.i);
 	return hl_copy_bytes((vbyte*)log, (int)strlen(log)+1);
 }
 
@@ -388,20 +274,16 @@ HL_PRIM vdynamic *HL_NAME(gl_get_shader_parameter)( vdynamic *s, int param ) {
 	{
 		int ret = 0;
 		glGetShaderiv(s->v.i, param, &ret);
-		sdl_gl_get_error();
-		//printf("gl_get_shader_parameter%d,%d,%d \n",ret,s->v.i,param);
 		return alloc_i32(ret);
 	}
 	default:
-		hl_error_msg(USTR("Unsupported param %d"), param);
+		hl_error("Unsupported param %d", param);
 	}
 	return NULL;
 }
 
 HL_PRIM void HL_NAME(gl_delete_shader)( vdynamic *s ) {
-	//printf("gl_delete_shader%d \n",s->v.i);
 	glDeleteShader(s->v.i);
-	sdl_gl_get_error();
 }
 
 // texture
@@ -409,44 +291,31 @@ HL_PRIM void HL_NAME(gl_delete_shader)( vdynamic *s ) {
 HL_PRIM vdynamic *HL_NAME(gl_create_texture)() {
 	unsigned int t = 0;
 	glGenTextures(1, &t);
-	sdl_gl_get_error();
-	//printf("gl_create_texture %d \n",t);
 	return alloc_i32(t);
 }
 
 HL_PRIM void HL_NAME(gl_active_texture)( int t ) {
-	//printf("gl_active_texture %d \n",t);
-    glActiveTexture(t);
-	sdl_gl_get_error();
+	glActiveTexture(t);
 }
 
 HL_PRIM void HL_NAME(gl_bind_texture)( int t, vdynamic *texture ) {
-	//printf("gl_bind_texture %d,%d \n",t,ZIDX(texture));
 	glBindTexture(t, ZIDX(texture));
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_bind_image_texture)( int unit, int texture, int level, bool layered, int layer, int access, int format ) {
-#	if !defined(HL_IOS) && !defined(HL_TVOS) && !defined(HL_MAC)
 	glBindImageTexture(unit, texture, level, layered, layer, access, format);
-#	endif
 }
 
 HL_PRIM void HL_NAME(gl_tex_parameterf)( int t, int key, float value ) {
-	GLOG("%d,%d,%d",t,key,value);
 	glTexParameterf(t, key, value);
 }
 
 HL_PRIM void HL_NAME(gl_tex_parameteri)( int t, int key, int value ) {
-	//printf("gl_tex_parameteri %d,%d,%d \n",t,key,value);
 	glTexParameteri(t, key, value);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int format, int type, vbyte *image ) {
-	//printf("gl_tex_image2d 0x%x,%d,0x%x,%d,%d,%d,0x%x,0x%x ptr=0x%x\n",target,level,internalFormat,width,height,border,format,type, image/*,hexlog(image,16)*/);
 	glTexImage2D(target, level, internalFormat, width, height, border, format, type, image);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int size, vbyte *data ) {
@@ -456,26 +325,20 @@ HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int inte
 }
 
 HL_PRIM void HL_NAME(gl_tex_image3d)( int target, int level, int internalFormat, int width, int height, int depth, int border, int format, int type, vbyte *image ) {
-	GLOG("%d,%d,%d,%d,%d,%d,%d,%d,%s",target,level,internalFormat,width,height,border,format,type,hexlog(image,16));
 	glTexImage3D(target, level, internalFormat, width, height, depth, border, format, type, image);
 }
 
 HL_PRIM void HL_NAME(gl_tex_image2d_multisample)( int target, int samples, int internalFormat, int width, int height, bool fixedsamplelocations) {
-	GLOG("%d,%d,%d,%d,%d,%d",target,samples,internalFormat,width,height,fixedsamplelocations);
 	glTexImage2DMultisample(target, samples, internalFormat, width, height, fixedsamplelocations);
 }
 
 HL_PRIM void HL_NAME(gl_generate_mipmap)( int t ) {
-	//printf("gl_generate_mipmap %d \n",t);
 	glGenerateMipmap(t);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_delete_texture)( vdynamic *t ) {
 	unsigned int tt = t->v.i;
-	//printf("gl_delete_texture %d \n",tt);
 	glDeleteTextures(1, &tt);
-	sdl_gl_get_error();
 }
 
 // framebuffer
@@ -487,14 +350,11 @@ HL_PRIM void HL_NAME(gl_blit_framebuffer)(int src_x0, int src_y0, int src_x1, in
 HL_PRIM vdynamic *HL_NAME(gl_create_framebuffer)() {
 	unsigned int f = 0;
 	glGenFramebuffers(1, &f);
-    sdl_gl_get_error();
-	//printf("gl_create_framebuffer%d \n",f);
 	return alloc_i32(f);
 }
 
 HL_PRIM void HL_NAME(gl_bind_framebuffer)( int target, vdynamic *f ) {
 	unsigned int id = ZIDX(f);
-	GLOG("%d,%d",target,id);
 #if	defined(HL_IOS) || defined(HL_TVOS)
 	if ( id==0 ) {
 		SDL_SysWMinfo info;
@@ -507,36 +367,31 @@ HL_PRIM void HL_NAME(gl_bind_framebuffer)( int target, vdynamic *f ) {
 }
 
 HL_PRIM void HL_NAME(gl_framebuffer_texture)( int target, int attach, vdynamic *t, int level ) {
-	GLOG("%d,%d,%d,%d,%d",target,attach,ZIDX(t),level);
 	glFramebufferTexture(target, attach, ZIDX(t), level);
 }
 
 HL_PRIM void HL_NAME(gl_framebuffer_texture2d)( int target, int attach, int texTarget, vdynamic *t, int level ) {
-	//printf("gl_framebuffer_texture2d%d,%d,%d,%d,%d \n",target,attach,texTarget,ZIDX(t),level);
 	glFramebufferTexture2D(target, attach, texTarget, ZIDX(t), level);
-	sdl_gl_get_error();
+}
+
+HL_PRIM void HL_NAME(gl_framebuffer_texture_layer)( int target, int attach, vdynamic *t, int level, int layer ) {
+	glFramebufferTextureLayer(target, attach, ZIDX(t), level, layer);
 }
 
 HL_PRIM void HL_NAME(gl_delete_framebuffer)( vdynamic *f ) {
 	unsigned int ff = (unsigned)f->v.i;
-	//printf("gl_delete_framebuffer%d \n",ff);
 	glDeleteFramebuffers(1, &ff);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_read_pixels)( int x, int y, int width, int height, int format, int type, vbyte *data ) {
-	//printf("gl_read_pixels%d,%d,%d,%d,%d,%d,%X \n",x,y,width,height,format,type,(int)(int_val)data);
 	glReadPixels(x, y, width, height, format, type, data);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_read_buffer)( int mode ) {
-	GLOG("%d",mode);
 	glReadBuffer(mode);
 }
 
 HL_PRIM void HL_NAME(gl_draw_buffers)( int count, unsigned int *buffers) {
-	GLOG("%d",count);
 	glDrawBuffers(count, buffers);
 }
 
@@ -545,14 +400,11 @@ HL_PRIM void HL_NAME(gl_draw_buffers)( int count, unsigned int *buffers) {
 HL_PRIM vdynamic *HL_NAME(gl_create_renderbuffer)() {
 	unsigned int buf = 0;
 	glGenRenderbuffers(1, &buf);
-	sdl_gl_get_error();
-	//printf("gl_create_renderbuffer%d \n",buf);
 	return alloc_i32(buf);
 }
 
 HL_PRIM void HL_NAME(gl_bind_renderbuffer)( int target, vdynamic *r ) {
 	unsigned int id = ZIDX(r);
-	GLOG("%d,%d",target,id);
 #if	defined(HL_IOS) || defined(HL_TVOS)
 	if ( id==0 ) {
 		SDL_SysWMinfo info;
@@ -565,28 +417,21 @@ HL_PRIM void HL_NAME(gl_bind_renderbuffer)( int target, vdynamic *r ) {
 }
 
 HL_PRIM void HL_NAME(gl_renderbuffer_storage)( int target, int format, int width, int height ) {
-	//printf("gl_renderbuffer_storage%d,%d,%d,%d \n",target,format,width,height);
 	glRenderbufferStorage(target, format, width, height);
-	sdl_gl_get_error();
 }
 
 
 HL_PRIM void HL_NAME(gl_renderbuffer_storage_multisample)( int target, int samples, int format, int width, int height ) {
-	GLOG("%d,%d,%d,%d,%d",target,samples,format,width,height);
 	glRenderbufferStorageMultisample(target, samples, format, width, height);
 }
 
 HL_PRIM void HL_NAME(gl_framebuffer_renderbuffer)( int frameTarget, int attach, int renderTarget, vdynamic *b ) {
-	//printf("gl_framebuffer_renderbuffer%d,%d,%d,%d \n",frameTarget,attach,renderTarget,ZIDX(b));
 	glFramebufferRenderbuffer(frameTarget, attach, renderTarget, ZIDX(b));
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_delete_renderbuffer)( vdynamic *b ) {
 	unsigned int bb = (unsigned)b->v.i;
-	//printf("gl_delete_renderbuffer%d \n",bb);
 	glDeleteRenderbuffers(1, &bb);
-	sdl_gl_get_error();
 }
 
 // buffer
@@ -594,104 +439,71 @@ HL_PRIM void HL_NAME(gl_delete_renderbuffer)( vdynamic *b ) {
 HL_PRIM vdynamic *HL_NAME(gl_create_buffer)() {
 	unsigned int b = 0;
 	glGenBuffers(1, &b);
-	sdl_gl_get_error();
-	//printf("gl_create_buffer%d \n",b);
 	return alloc_i32(b);
 }
 
 HL_PRIM void HL_NAME(gl_bind_buffer)( int target, vdynamic *b ) {
-	//printf("gl_bind_buffer%d,%d \n",target,ZIDX(b));
 	glBindBuffer(target, ZIDX(b));
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_bind_buffer_base)( int target, int index, vdynamic *b ) {
-	GLOG("%d,%d",target,ZIDX(b));
 	glBindBufferBase(target, index, ZIDX(b));
 }
 
 HL_PRIM void HL_NAME(gl_buffer_data_size)( int target, int size, int param ) {
-	//printf("gl_buffer_data_size%d,%d,%d \n",target,size,param);
 	glBufferData(target, size, NULL, param);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_buffer_data)( int target, int size, vbyte *data, int param ) {
-	//printf("gl_buffer_data%d,%d,%d \n",target,size,param);
 	glBufferData(target, size, data, param);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_buffer_sub_data)( int target, int offset, vbyte *data, int srcOffset, int srcLength ) {
-	//printf("gl_buffer_sub_data%d,%d,%d \n",target,offset,srcLength);
 	glBufferSubData(target, offset, srcLength, data + srcOffset);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_enable_vertex_attrib_array)( int attrib ) {
-	//printf("gl_enable_vertex_attrib_array%d \n",attrib);
 	glEnableVertexAttribArray(attrib);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_disable_vertex_attrib_array)( int attrib ) {
-	//printf("gl_disable_vertex_attrib_array%d \n",attrib);
 	glDisableVertexAttribArray(attrib);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_vertex_attrib_pointer)( int index, int size, int type, bool normalized, int stride, int position ) {
-	//printf("gl_vertex_attrib_pointer%d,%d,%d,%d,%d,%d \n",index,size,type,normalized,stride,position);
 	glVertexAttribPointer(index, size, type, normalized, stride, (void*)(int_val)position);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_vertex_attrib_ipointer)( int index, int size, int type, int stride, int position ) {
-	GLOG("%d,%d,%d,%d,%d",index,size,type,stride,position);
 	glVertexAttribIPointer(index, size, type, stride, (void*)(int_val)position);
+}
+
+HL_PRIM void HL_NAME(gl_vertex_attrib_divisor)( int index, int divisor ) {
+	glVertexAttribDivisor(index, divisor);
 }
 
 HL_PRIM void HL_NAME(gl_delete_buffer)( vdynamic *b ) {
 	unsigned int bb = (unsigned)b->v.i;
-	//printf("gl_delete_buffer%d \n",bb);
 	glDeleteBuffers(1, &bb);
-	sdl_gl_get_error();
 }
 
 // uniforms
 
 HL_PRIM void HL_NAME(gl_uniform1i)( vdynamic *u, int i ) {
-	//printf("gl_uniform1i%d,%d \n",u->v.i,i);
 	glUniform1i(u->v.i, i);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_uniform4fv)( vdynamic *u, vbyte *buffer, int bufPos, int count ) {
-	//printf("gl_uniform4fv%d,%d \n",u->v.i,count);
-#	ifdef GL_LOG
-	if( gl_log_active ) {
-		int i;
-		fprintf(gl_log_out,"\t");
-		for(i=0;i<count;i++) {
-			fprintf(gl_log_out,"%g",((float*)buffer)[bufPos + i]);
-			if( i < count-1 ) {
-				fprintf(gl_log_out,",");
-				if( ((i+1) & 3) == 0 ) fprintf(gl_log_out,"\n\t");
-			}
-		}
-		fprintf(gl_log_out,"\n");
-	}
-#	endif
 	glUniform4fv(u->v.i, count, (float*)buffer + bufPos);
-	sdl_gl_get_error();
+}
+
+HL_PRIM void HL_NAME(gl_uniform_matrix4fv)( vdynamic *u, bool transpose, vbyte *buffer, int bufPos, int count ) {
+	glUniformMatrix4fv(u->v.i, count, transpose ? GL_TRUE : GL_FALSE, (float*)buffer + bufPos);
 }
 
 // compute
 HL_PRIM void HL_NAME(gl_dispatch_compute)( int num_groups_x, int num_groups_y, int num_groups_z ) {
-	GLOG("%d,%d,%d",num_groups_x,num_groups_y,num_groups_z);
-#	if !defined(HL_IOS) && !defined(HL_TVOS) && !defined(HL_MAC)
 	glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
-#	endif
 }
 
 HL_PRIM void HL_NAME(gl_memory_barrier)( int barriers ) {
@@ -703,24 +515,39 @@ HL_PRIM void HL_NAME(gl_memory_barrier)( int barriers ) {
 // draw
 
 HL_PRIM void HL_NAME(gl_draw_elements)( int mode, int count, int type, int start ) {
-	//printf("gl_draw_elements%d,%d,%d,%d \n",mode,count,type,start);
 	glDrawElements(mode, count, type, (void*)(int_val)start);
-	sdl_gl_get_error();
 }
 
 HL_PRIM void HL_NAME(gl_draw_arrays)( int mode, int first, int count, int start ) {
-	GLOG("%d,%d,%d",mode,first,count);
 	glDrawArrays(mode,first,count);
 }
 
 HL_PRIM void HL_NAME(gl_draw_elements_instanced)( int mode, int count, int type, int start, int primcount ) {
-	GLOG("%d,%d,%d,%d,%d",mode,count,type,start,primcount);
 	glDrawElementsInstanced(mode,count,type,(void*)(int_val)start,primcount);
 }
 
 HL_PRIM void HL_NAME(gl_draw_arrays_instanced)( int mode, int first, int count, int primcount ) {
-	GLOG("%d,%d,%d,%d",mode,first,count,primcount);
 	glDrawArraysInstanced(mode,first,count,primcount);
+}
+
+HL_PRIM void HL_NAME(gl_multi_draw_elements_indirect)( int mode, int type, vbyte *data, int count, int stride ) {
+#	ifdef GL_VERSION_4_3
+	glMultiDrawElementsIndirect(mode, type, data, count, stride);
+#	endif
+}
+
+HL_PRIM int HL_NAME(gl_get_config_parameter)( int feature ) {
+	switch( feature ) {
+	case 0:
+#		ifdef GL_VERSION_4_3
+		return 1;
+#		else
+		return 0;
+#		endif
+	default:
+		break;
+	}
+	return -1;
 }
 
 // queries
@@ -728,12 +555,10 @@ HL_PRIM void HL_NAME(gl_draw_arrays_instanced)( int mode, int first, int count, 
 HL_PRIM vdynamic *HL_NAME(gl_create_query)() {
 	unsigned int t = 0;
 	glGenQueries(1, &t);
-	GLOGR("%d",t,"");
 	return alloc_i32(t);
 }
 
 HL_PRIM void HL_NAME(gl_delete_query)( vdynamic *q ) {
-	GLOG("%d",q->v.i);
 	glDeleteQueries(1, (const GLuint *) &q->v.i);
 }
 
@@ -770,20 +595,28 @@ HL_PRIM void HL_NAME(gl_query_counter)( vdynamic *q, int target ) {
 HL_PRIM vdynamic *HL_NAME(gl_create_vertex_array)() {
 	unsigned int f = 0;
 	glGenVertexArrays(1, &f);
-	GLOGR("%d",f,"");
 	return alloc_i32(f);
 }
 
 HL_PRIM void HL_NAME(gl_bind_vertex_array)( vdynamic *b ) {
 	unsigned int bb = (unsigned)b->v.i;
-	GLOG("%d",bb);
 	glBindVertexArray(bb);
 }
 
 HL_PRIM void HL_NAME(gl_delete_vertex_array)( vdynamic *b ) {
 	unsigned int bb = (unsigned)b->v.i;
-	GLOG("%d",bb);
 	glDeleteVertexArrays(1, &bb);
+}
+
+// uniform buffer
+
+HL_PRIM int HL_NAME(gl_get_uniform_block_index)( vdynamic *p, vstring *name ) {
+	char *cname = hl_to_utf8(name->bytes);
+	return (int)glGetUniformBlockIndex(p->v.i, cname);
+}
+
+HL_PRIM void HL_NAME(gl_uniform_block_binding)( vdynamic *p, int index, int binding ) {
+	glUniformBlockBinding(p->v.i, index, binding);
 }
 
 DEFINE_PRIM(_BOOL,gl_init,_NO_ARG);
@@ -845,8 +678,11 @@ DEFINE_PRIM(_NULL(_I32),gl_create_framebuffer,_NO_ARG);
 DEFINE_PRIM(_VOID,gl_bind_framebuffer,_I32 _NULL(_I32));
 DEFINE_PRIM(_VOID,gl_framebuffer_texture,_I32 _I32 _NULL(_I32) _I32);
 DEFINE_PRIM(_VOID,gl_framebuffer_texture2d,_I32 _I32 _I32 _NULL(_I32) _I32);
+DEFINE_PRIM(_VOID,gl_framebuffer_texture_layer,_I32 _I32 _NULL(_I32) _I32 _I32);
 DEFINE_PRIM(_VOID,gl_delete_framebuffer,_NULL(_I32));
 DEFINE_PRIM(_VOID,gl_read_pixels,_I32 _I32 _I32 _I32 _I32 _I32 _BYTES);
+DEFINE_PRIM(_VOID,gl_read_buffer,_I32);
+DEFINE_PRIM(_VOID,gl_draw_buffers,_I32 _BYTES);
 DEFINE_PRIM(_NULL(_I32),gl_create_renderbuffer,_NO_ARG);
 DEFINE_PRIM(_VOID,gl_bind_renderbuffer,_I32 _NULL(_I32));
 DEFINE_PRIM(_VOID,gl_renderbuffer_storage,_I32 _I32 _I32 _I32);
@@ -866,6 +702,7 @@ DEFINE_PRIM(_VOID,gl_vertex_attrib_ipointer,_I32 _I32 _I32 _I32 _I32);
 DEFINE_PRIM(_VOID,gl_delete_buffer,_NULL(_I32));
 DEFINE_PRIM(_VOID,gl_uniform1i,_NULL(_I32) _I32);
 DEFINE_PRIM(_VOID,gl_uniform4fv,_NULL(_I32) _BYTES _I32 _I32);
+DEFINE_PRIM(_VOID,gl_uniform_matrix4fv,_NULL(_I32) _BOOL _BYTES _I32 _I32);
 DEFINE_PRIM(_VOID,gl_bind_image_texture,_I32 _I32 _I32 _BOOL _I32 _I32 _I32);
 DEFINE_PRIM(_VOID,gl_dispatch_compute,_I32 _I32 _I32);
 DEFINE_PRIM(_VOID,gl_memory_barrier,_I32);
@@ -873,10 +710,11 @@ DEFINE_PRIM(_VOID,gl_draw_elements,_I32 _I32 _I32 _I32);
 DEFINE_PRIM(_VOID,gl_draw_elements_instanced,_I32 _I32 _I32 _I32 _I32);
 DEFINE_PRIM(_VOID,gl_draw_arrays,_I32 _I32 _I32);
 DEFINE_PRIM(_VOID,gl_draw_arrays_instanced,_I32 _I32 _I32 _I32);
+DEFINE_PRIM(_VOID,gl_multi_draw_elements_indirect, _I32 _I32 _BYTES _I32 _I32);
 DEFINE_PRIM(_NULL(_I32),gl_create_vertex_array,_NO_ARG);
 DEFINE_PRIM(_VOID,gl_bind_vertex_array,_NULL(_I32));
 DEFINE_PRIM(_VOID,gl_delete_vertex_array,_NULL(_I32));
-
+DEFINE_PRIM(_VOID,gl_vertex_attrib_divisor,_I32 _I32);
 
 DEFINE_PRIM(_NULL(_I32), gl_create_query, _NO_ARG);
 DEFINE_PRIM(_VOID, gl_delete_query, _NULL(_I32));
@@ -885,3 +723,8 @@ DEFINE_PRIM(_VOID, gl_end_query, _I32);
 DEFINE_PRIM(_BOOL, gl_query_result_available, _NULL(_I32));
 DEFINE_PRIM(_VOID, gl_query_counter, _NULL(_I32) _I32);
 DEFINE_PRIM(_F64, gl_query_result, _NULL(_I32));
+
+DEFINE_PRIM(_I32, gl_get_uniform_block_index, _NULL(_I32) _STRING);
+DEFINE_PRIM(_VOID, gl_uniform_block_binding, _NULL(_I32) _I32 _I32);
+
+DEFINE_PRIM(_I32, gl_get_config_parameter, _I32);

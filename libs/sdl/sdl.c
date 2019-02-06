@@ -394,7 +394,9 @@ HL_PRIM void HL_NAME(quit)() {
 }
 
 HL_PRIM void HL_NAME(delay)( int time ) {
+	hl_blocking(true);
 	SDL_Delay(time);
+	hl_blocking(false);
 }
 
 HL_PRIM int HL_NAME(get_screen_width)() {
