@@ -1,3 +1,6 @@
+#   elif defined(HL_IOS) || defined(HL_TVOS)
+	hl_error("hl_process_kill() not available on this platform");
+#	else
 /*
  * Copyright (C)2005-2016 Haxe Foundation
  *
@@ -27,6 +30,7 @@
 #	include <sys/types.h>
 #	include <unistd.h>
 #	include <errno.h>
+#	include <signal.h>
 #	if !defined(HL_MAC)
 #		if defined(HL_BSD) || defined (HL_IOS) || defined (HL_TVOS)
 #			include <sys/wait.h>
@@ -246,15 +250,16 @@ HL_PRIM int hl_process_exit( vprocess *p, bool *running ) {
 	}
 	return rval;
 #	else
-	int rval;
+	int rval = 0;
 	int wret = waitpid(p->pid,&rval,running ? WNOHANG : 0);
 	if( running ) *running = false;
 	if( wret != p->pid ) {
-		if( running && wret == 0 ) {
-			*running = true;
+		if( running ) {
+			if( wret == 0 )
+				*running = true;
 			return 0;
-		}
-		return -1;
+		} else
+			return -1;
 	}
 	if( !WIFEXITED(rval) ) {
 		if( WIFSIGNALED(rval) )

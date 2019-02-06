@@ -154,8 +154,11 @@ HL_PRIM void hl_sys_print( vbyte *msg ) {
 	hl_blocking(true);
 #if __ANDROID__
 	LOG_ANDROID_FMT("Print : %s", hl_to_utf8(msg));
+#elif defined(HL_XBO)
+	OutputDebugStringW((LPCWSTR)msg);
 #else
 	uprintf(USTR("%s"),(uchar*)msg);
+	fflush(stdout);
 #endif
 	hl_blocking(false);
 }
