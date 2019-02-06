@@ -2,7 +2,7 @@ add_library(uv.hdll SHARED
     uv.c
 )
 
-if (WIN32)
+if(WIN32)
     target_sources(uv.hdll
         PRIVATE
             ${INCLUDES_BASE_DIR}/libuv/src/fs-poll.c
@@ -45,7 +45,7 @@ set_as_hdll(uv)
 target_link_libraries(uv.hdll
     libhl
 )
-if (WIN32)
+if(WIN32)
     target_include_directories(uv.hdll
         PRIVATE
         ${INCLUDES_BASE_DIR}/libuv/include
@@ -68,5 +68,5 @@ endif()
 install(
     TARGETS
         uv.hdll
-    DESTINATION .
+    DESTINATION ${HDLL_DESTINATION}
 )

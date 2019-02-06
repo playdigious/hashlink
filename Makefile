@@ -1,11 +1,12 @@
 
 LBITS := $(shell getconf LONG_BIT)
+ARCH ?= $(LBITS)
+PREFIX ?= /usr/local
+INSTALL_DIR ?= $(PREFIX)
 
-ifndef ARCH
-	ARCH = $(LBITS)
-endif
+LIBS=fmt sdl ssl openal ui uv mysql
 
-CFLAGS = -Wall -O3 -I src -msse2 -mfpmath=sse -std=c11 -I include/pcre -D LIBHL_EXPORTS
+CFLAGS = -Wall -O3 -I src -msse2 -mfpmath=sse -std=c11 -I include/pcre -I include/mikktspace -D LIBHL_EXPORTS
 LFLAGS = -L. -lhl
 LIBFLAGS =
 HLFLAGS = -ldl
@@ -14,17 +15,19 @@ LIBTURBOJPEG = -lturbojpeg
 
 PCRE = include/pcre/pcre_chartables.o include/pcre/pcre_compile.o include/pcre/pcre_dfa_exec.o \
 	include/pcre/pcre_exec.o include/pcre/pcre_fullinfo.o include/pcre/pcre_globals.o \
-	include/pcre/pcre_newline.o include/pcre/pcre_string_utils.o include/pcre/pcre_tables.o include/pcre/pcre_xclass.o
+	include/pcre/pcre_newline.o include/pcre/pcre_string_utils.o include/pcre/pcre_tables.o include/pcre/pcre_xclass.o \
+	include/pcre/pcre16_ord2utf16.o include/pcre/pcre16_valid_utf16.o include/pcre/pcre_ucd.o
 
 RUNTIME = src/alloc.o
 
-STD = src/std/array.o src/std/buffer.o src/std/bytes.o src/std/cast.o src/std/date.o src/std/error.o \
+STD = src/std/array.o src/std/buffer.o src/std/bytes.o src/std/cast.o src/std/date.o src/std/error.o src/std/debug.o \
 	src/std/file.o src/std/fun.o src/std/maps.o src/std/math.o src/std/obj.o src/std/random.o src/std/regexp.o \
-	src/std/socket.o src/std/string.o src/std/sys.o src/std/types.o src/std/ucs2.o src/std/thread.o src/std/process.o
+	src/std/socket.o src/std/string.o src/std/sys.o src/std/types.o src/std/ucs2.o src/std/thread.o src/std/process.o \
+	src/std/track.o
 
 HL = src/code.o src/jit.o src/main.o src/module.o src/debugger.o
 
-FMT = libs/fmt/fmt.o libs/fmt/sha1.o
+FMT = libs/fmt/fmt.o libs/fmt/sha1.o include/mikktspace/mikktspace.o libs/fmt/mikkt.o
 
 SDL = libs/sdl/sdl.o libs/sdl/gl.o
 
@@ -35,6 +38,8 @@ SSL = libs/ssl/ssl.o
 UV = libs/uv/uv.o
 
 UI = libs/ui/ui_stub.o
+
+MYSQL = libs/mysql/socket.o libs/mysql/sha1.o libs/mysql/my_proto.o libs/mysql/my_api.o libs/mysql/mysql.o
 
 LIB = ${PCRE} ${RUNTIME} ${STD}
 
@@ -83,8 +88,13 @@ RELEASE_NAME = linux
 
 endif
 
-ifndef INSTALL_DIR
-INSTALL_DIR=/usr/local
+
+ifdef MESA
+LIBS += mesa
+endif
+
+ifdef DEBUG
+CFLAGS += -g
 endif
 
 all: libhl hl libs
@@ -103,7 +113,7 @@ uninstall:
 	rm -f $(INSTALL_DIR)/bin/hl $(INSTALL_DIR)/lib/libhl.${LIBEXT} $(INSTALL_DIR)/lib/*.hdll
 	rm -f $(INSTALL_DIR)/include/hl.h $(INSTALL_DIR)/include/hlc.h $(INSTALL_DIR)/include/hlc_main.c
 
-libs: fmt sdl ssl openal ui uv
+libs: $(LIBS)
 
 libhl: ${LIB}
 	${CC} -o libhl.$(LIBEXT) -m${ARCH} ${LIBFLAGS} -shared ${LIB} -lpthread -lm
@@ -115,7 +125,7 @@ hl: ${HL} libhl
 	${CC} ${CFLAGS} -o hl ${HL} ${LFLAGS} ${HLFLAGS}
 
 fmt: ${FMT} libhl
-	${CC} ${CFLAGS} -shared -o fmt.hdll ${FMT} ${LIBFLAGS} -L. -lhl -lpng $(LIBTURBOJPEG) -lz -lvorbisfile
+	${CC} ${CFLAGS} -I include/mikktspace -shared -o fmt.hdll ${FMT} ${LIBFLAGS} -L. -lhl -lpng $(LIBTURBOJPEG) -lz -lvorbisfile
 
 sdl: ${SDL} libhl
 	${CC} ${CFLAGS} -shared -o sdl.hdll ${SDL} ${LIBFLAGS} -L. -lhl -lSDL2 $(LIBOPENGL)
@@ -131,6 +141,12 @@ ui: ${UI} libhl
 
 uv: ${UV} libhl
 	${CC} ${CFLAGS} -shared -o uv.hdll ${UV} ${LIBFLAGS} -L. -lhl -luv
+
+mysql: ${MYSQL} libhl
+	${CC} ${CFLAGS} -shared -o mysql.hdll ${MYSQL} ${LIBFLAGS} -L. -lhl
+	
+mesa:
+	(cd libs/mesa && make)
 
 release: release_version release_$(RELEASE_NAME)
 

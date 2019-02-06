@@ -80,43 +80,43 @@ static JNIEnv* hl_android_jni_get_env(void)
 	return env;
 }
 
-// /* JNI_OnLoad is automatically called when loading shared library through System.loadLibrary() Java call */
-// JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
-// {
-// 	JNIEnv *env;
-// 	jclass cls;
+/* JNI_OnLoad is automatically called when loading shared library through System.loadLibrary() Java call */
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
+{
+	JNIEnv *env;
+	jclass cls;
 
-// 	hl_java_vm = vm;
-// 	if ((*hl_java_vm)->GetEnv(hl_java_vm, (void**) &env, JNI_VERSION_1_4) != JNI_OK) {
-// 		__android_log_print(ANDROID_LOG_ERROR, HL_JNI_LOG_TAG, "Failed to get the environment using GetEnv()");
-// 		return -1;
-// 	}
+	hl_java_vm = vm;
+	if ((*hl_java_vm)->GetEnv(hl_java_vm, (void**) &env, JNI_VERSION_1_4) != JNI_OK) {
+		__android_log_print(ANDROID_LOG_ERROR, HL_JNI_LOG_TAG, "Failed to get the environment using GetEnv()");
+		return -1;
+	}
 
-// 	/* Create pthread "destructor" pthread key to detach properly all threads */
-// 	if (pthread_key_create(&hl_java_thread_key, hl_android_jni_thread_destructor) != 0) {
-// 		__android_log_print(ANDROID_LOG_ERROR, HL_JNI_LOG_TAG, "Error initializing pthread key");
-// 	}
+	/* Create pthread "destructor" pthread key to detach properly all threads */
+	if (pthread_key_create(&hl_java_thread_key, hl_android_jni_thread_destructor) != 0) {
+		__android_log_print(ANDROID_LOG_ERROR, HL_JNI_LOG_TAG, "Error initializing pthread key");
+	}
 
-// 	/* Make sure we are attached (we should) and setup pthread destructor */
-// 	env = hl_android_jni_get_env();
+	/* Make sure we are attached (we should) and setup pthread destructor */
+	env = hl_android_jni_get_env();
 
-// 	/* Try to retrieve local reference to our Activity class */
-// 	cls = (*env)->FindClass(env, HL_ANDROID_ACTIVITY);
-// 	if (!cls) {
-// 		__android_log_print(ANDROID_LOG_ERROR, HL_JNI_LOG_TAG, "Error cannot find HashLink Activity class");
-// 	}
+	/* Try to retrieve local reference to our Activity class */
+	cls = (*env)->FindClass(env, HL_ANDROID_ACTIVITY);
+	if (!cls) {
+		__android_log_print(ANDROID_LOG_ERROR, HL_JNI_LOG_TAG, "Error cannot find HashLink Activity class");
+	}
 
-// 	/* Create a global reference for our Activity class */
-// 	hl_java_activity_class = (jclass)((*env)->NewGlobalRef(env, cls));
+	/* Create a global reference for our Activity class */
+	hl_java_activity_class = (jclass)((*env)->NewGlobalRef(env, cls));
 
-// 	/* Retrieve the getContext() method id */
-// 	hl_java_method_id_get_context = (*env)->GetStaticMethodID(env, hl_java_activity_class, "getContext","()Landroid/content/Context;");
-// 	if (!hl_java_method_id_get_context) {
-// 		__android_log_print(ANDROID_LOG_ERROR, HL_JNI_LOG_TAG, "Error cannot get getContext() method on specified Activity class (not an Activity ?)");
-// 	}
+	/* Retrieve the getContext() method id */
+	hl_java_method_id_get_context = (*env)->GetStaticMethodID(env, hl_java_activity_class, "getContext","()Landroid/content/Context;");
+	if (!hl_java_method_id_get_context) {
+		__android_log_print(ANDROID_LOG_ERROR, HL_JNI_LOG_TAG, "Error cannot get getContext() method on specified Activity class (not an Activity ?)");
+	}
 	
-// 	return JNI_VERSION_1_4;
-// }
+	return JNI_VERSION_1_4;
+}
 
 static void hl_android_jni_thread_destructor(void* value)
 {

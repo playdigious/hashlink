@@ -20,21 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <hlc.h>
-#include <SDL_main.h>
 
 #if defined(HL_MOBILE) && defined(sdl__Sdl__val)
 #   include <SDL_main.h>
 #endif
 
 #ifdef HL_WIN_DESKTOP
+#	define CONST
 #	pragma warning(disable:4091)
+#if !defined(HL_MINGW)
 #	include <DbgHelp.h>
+#else
+#	include <dbghelp.h>
+#endif
 #	pragma comment(lib, "Dbghelp.lib")
+#	undef CONST
 #endif
 
 #ifdef HL_CONSOLE
 extern void sys_global_init();
 extern void sys_global_exit();
+#else
+#define sys_global_init()
+#define sys_global_exit()
 #endif
 
 
@@ -43,12 +51,6 @@ extern void sys_global_exit();
 #else
 #	define _CrtSetDbgFlag(x)
 #	define _CrtCheckMemory()
-#endif
-
-//Used to get callstack on Apple devices
-#if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS)
-HL_API int util_callstack_adresses(int size, void** adresses);
-HL_API const char *util_address_to_name(void* adress);
 #endif
 
 static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
@@ -65,7 +67,7 @@ static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
 	if( !stack_process_handle ) {
 		stack_process_handle = GetCurrentProcess();
 		SymSetOptions(SYMOPT_LOAD_LINES);
-		SymInitialize(stack_process_handle,NULL,TRUE);
+		SymInitialize(stack_process_handle,NULL,(BOOL)1);
 	}
 	if( SymFromAddrW(stack_process_handle,(DWORD64)(int_val)addr,&index,&data.sym) ) {
 		DWORD offset = 0;
@@ -77,11 +79,6 @@ static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
 		return out;
 	}
 #endif
-#if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS)
-	uchar *str = hl_to_utf16(util_address_to_name(addr));
-	*outSize = usprintf(out, *outSize, USTR("%s"),str);
-	return out;
-#endif
 	return NULL;
 }
 
@@ -91,10 +88,6 @@ static int hlc_capture_stack( void **stack, int size ) {
 	count = CaptureStackBackTrace(2, size, stack, NULL) - 8; // 8 startup
 	if( count < 0 ) count = 0;
 #	endif
-#if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS)
-	count = util_callstack_adresses(size, stack) - 8; // 8 startup
-	if( count < 0 ) count = 0;
-#endif
 	return count;
 }
 
@@ -118,37 +111,31 @@ int wmain(int argc, uchar *argv[]) {
 #else
 int main(int argc, char *argv[]) {
 #endif
-	hl_trap_ctx ctx;
-	vdynamic *exc;
-#	ifdef HL_CONSOLE
+	vdynamic *ret;
+	bool isExc = false;
+	hl_type_fun tf = { 0 };
+	hl_type clt = { 0 };
+	vclosure cl = { 0 };
 	sys_global_init();
-#	endif
-	hl_global_init(&ctx);
+	hl_global_init();
+	hl_register_thread(&ret);
 	hl_setup_exception(hlc_resolve_symbol,hlc_capture_stack);
 	hl_setup_callbacks(hlc_static_call, hlc_get_wrapper);
 	hl_sys_init((void**)(argv + 1),argc - 1,NULL);
-	hl_trap(ctx, exc, on_exception);
-#	ifdef HL_VCC
-	__try {
-#	endif
-	hl_entry_point();
-#	ifdef HL_VCC
-	} __except( throw_handler(GetExceptionCode()) ) {}
-#	endif
-	hl_global_free();
-	return 0;
-on_exception:
-	{
+	tf.ret = &hlt_void;
+	clt.kind = HFUN;
+	clt.fun = &tf;
+	cl.t = &clt;
+	cl.fun = hl_entry_point;
+	ret = hl_dyn_call_safe(&cl, NULL, 0, &isExc);
+	if( isExc ) {
 		varray *a = hl_exception_stack();
 		int i;
-		uprintf(USTR("Uncaught exception: %s\n"), hl_to_string(exc));
-		for(i=0;i<a->size;i++)
-			uprintf(USTR("Called from %s\n"), hl_aptr(a,uchar*)[i]);
-		hl_debug_break();
+		uprintf(USTR("Uncaught exception: %s\n"), hl_to_string(ret));
+		for (i = 0; i<a->size; i++)
+			uprintf(USTR("Called from %s\n"), hl_aptr(a, uchar*)[i]);
 	}
 	hl_global_free();
-#	ifdef HL_CONSOLE
 	sys_global_exit();
-#	endif
-	return 1;
+	return (int)isExc;
 }

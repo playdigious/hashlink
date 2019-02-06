@@ -42,6 +42,8 @@
 #undef NO_ERROR
 #undef EOF
 #undef STRICT
+#undef TRUE
+#undef FALSE
 
 // disable some warnings triggered by HLC code generator
 
@@ -73,7 +75,8 @@
 #endif
 
 static void hl_null_access() {
-	hl_error_msg(USTR("Null access"));
+	hl_error("Null access");
+	HL_UNREACHABLE;
 }
 
 #endif

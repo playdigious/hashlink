@@ -74,22 +74,10 @@ typedef uchar pchar;
 #define pstrlen	ustrlen
 #endif
 
-
-#if defined(__APPLE__)
-#include <TargetConditionals.h>
-#if TARGET_OS_IOS || TARGET_OS_TV
-#include <IOS_IO.h>
-#include <iOS_Utils.h>
-#endif
-#endif
-
 #ifdef HL_MAC
 #	include <sys/syslimits.h>
 #	include <limits.h>
 #	include <mach-o/dyld.h>
-#endif
-#if __ANDROID__
-#include <Android_Utils.h>
 #endif
 
 #ifndef CLK_TCK
@@ -117,10 +105,6 @@ HL_PRIM vbyte *hl_sys_string() {
 	return (vbyte*)sys_platform_name();
 #elif defined(HL_WIN) || defined(HL_CYGWIN) || defined(HL_MINGW)
 	return (vbyte*)USTR("Windows");
-#elif defined(HL_GNUKBSD)
-	return (vbyte*)USTR("GNU/kFreeBSD");
-#elif defined(HL_LINUX)
-	return (vbyte*)USTR("Linux");
 #elif defined(HL_BSD)
 	return (vbyte*)USTR("BSD");
 #elif defined(HL_MAC)
@@ -131,6 +115,10 @@ HL_PRIM vbyte *hl_sys_string() {
 	return (vbyte*)USTR("tvOS");
 #elif defined(HL_ANDROID)
 	return (vbyte*)USTR("Android");
+#elif defined(HL_GNUKBSD)
+	return (vbyte*)USTR("GNU/kFreeBSD");
+#elif defined(HL_LINUX)
+	return (vbyte*)USTR("Linux");
 #else
 #error Unknown system string
 #endif
@@ -141,22 +129,19 @@ HL_PRIM vbyte *hl_sys_locale() {
 	wchar_t loc[LOCALE_NAME_MAX_LENGTH];
 	int len = GetSystemDefaultLocaleName(loc,LOCALE_NAME_MAX_LENGTH);
 	return len == 0 ? NULL : hl_copy_bytes((vbyte*)loc,(len+1)*2);
-#elif TARGET_OS_TV || TARGET_OS_IOS
-	return (vbyte*)getDeviceLanguageCode();
-#elif __ANDROID__
-	return (vbyte *) hl_to_utf16(getLocaleLanguage());
 #else
-	return (vbyte*)setlocale(LC_ALL,NULL);
+	return (vbyte*)setlocale(LC_ALL, NULL);
 #endif
 }
 
 HL_PRIM void hl_sys_print( vbyte *msg ) {
 	hl_blocking(true);
-#if __ANDROID__
-	LOG_ANDROID_FMT("Print : %s", hl_to_utf8(msg));
-#else
+#	ifdef HL_XBO
+	OutputDebugStringW((LPCWSTR)msg);
+#	else
 	uprintf(USTR("%s"),(uchar*)msg);
-#endif
+	fflush(stdout);
+#	endif
 	hl_blocking(false);
 }
 
@@ -215,6 +200,12 @@ HL_PRIM varray *hl_sys_env() {
 	pchar **e = environ;
 	pchar **arr;
 	int count = 0;
+#	ifdef HL_WIN_DESKTOP
+	if( e == NULL ) {
+		_wgetenv(L"");
+		e = environ;
+	}
+#	endif
 	while( *e ) {
 		pchar *x = pstrchr(*e,'=');
 		if( x == NULL ) {
@@ -320,27 +311,12 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 }
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
-#if TARGET_OS_IOS || TARGET_OS_TV
-	return exists(path);
-#elif __ANDROID__
-	pstat st;
-	if(stat((pchar*)getDocumentPath(path),&st) == 0)
-	{
-		return true;
-	}
-	return stat((pchar*)getResourcePath(path),&st) == 0;
-#else
 	pstat st;
 	return stat((pchar*)path,&st) == 0;
-#endif
 }
 
 HL_PRIM bool hl_sys_delete( vbyte *path ) {
-#if TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
-	return unlink((pchar*)getDocumentPath(path)) == 0;
-#else
 	return unlink((pchar*)path) == 0;
-#endif
 }
 
 HL_PRIM bool hl_sys_rename( vbyte *path, vbyte *newname ) {
@@ -377,15 +353,7 @@ HL_PRIM bool hl_sys_is_dir( vbyte *path ) {
 }
 
 HL_PRIM bool hl_sys_create_dir( vbyte *path, int mode ) {
-#if defined(HL_PS)
-	return false;
-#elif TARGET_OS_IOS || TARGET_OS_TV
-	return createDir(path, mode) == 0;
-#elif __ANDROID__
-	return mkdir((pchar*)getDocumentPath(path),mode) == 0;
-#else
 	return mkdir((pchar*)path,mode) == 0;
-#endif
 }
 
 HL_PRIM bool hl_sys_remove_dir( vbyte *path ) {
@@ -551,10 +519,6 @@ HL_PRIM vbyte *hl_sys_full_path( vbyte *path ) {
 		last = i;
 	}
 	return (vbyte*)pstrdup(out,len);
-#elif defined(HL_PS)
-	return path;
-#elif defined(__ANDROID__)
-	return getResourcePath(path);
 #else
 	pchar buf[PATH_MAX];
 	if( realpath((pchar*)path,buf) == NULL )
@@ -631,10 +595,13 @@ HL_PRIM void hl_sys_init(void **args, int nargs, void *hlfile) {
 	sys_args = (pchar**)args;
 	sys_nargs = nargs;
 	hl_file = hlfile;
+#	ifdef HL_WIN
+	setlocale(LC_CTYPE, ""); // printf to current locale
+#	endif
 }
 
 HL_PRIM vbyte *hl_sys_hl_file() {
-	return hl_file != NULL ? hl_file : hl_sys_exe_path();
+	return hl_file!=NULL ? (vbyte*)hl_file : hl_sys_exe_path();
 }
 
 #ifndef HL_MOBILE

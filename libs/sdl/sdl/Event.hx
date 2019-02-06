@@ -13,12 +13,7 @@ package sdl;
 	public var keyRepeat : Bool;
 	public var controller : Int;
 	public var value : Int;
-	public var fingerX : Single;
-	public var fingerY : Single;
-	public var fingerIdHigh : Int;
-	public var fingerIdLow : Int;
-	public var saveName : hl.Bytes;
-	public var saveData : hl.Bytes;
+	public var fingerId : Int;
 	public function new() {
 	}
 }
@@ -42,14 +37,6 @@ package sdl;
 	var TouchDown	= 200;
 	var TouchUp		= 201;
 	var TouchMove	= 202;
-	var CloudSaveLoaded = 300;
-	//AppEvents
-	var AppTerminating = 400;
-	var LowMemory = 401;
-	var WillEnterBackground = 402;
-	var DidEnterBackground = 403;
-	var WillEnterForeground = 404;
-	var DidEnterForeground = 405;
 }
 
 @:enum abstract WindowStateChange(Int) {

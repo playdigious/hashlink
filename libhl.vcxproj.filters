@@ -103,7 +103,16 @@
     <ClCompile Include="src\std\debug.c">
       <Filter>std</Filter>
     </ClCompile>
-    <ClCompile Include="src\track.c">
+    <ClCompile Include="include\pcre\pcre_ucd.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="include\pcre\pcre16_valid_utf16.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="include\pcre\pcre16_ord2utf16.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="src\std\track.c">
       <Filter>std</Filter>
     </ClCompile>
   </ItemGroup>
