@@ -1,11 +1,4 @@
-abstract Pointer(haxe.Int64) {
-
-	public var value(get,never) : haxe.Int64;
-
-	inline function get_value() return this;
-
-	inline function new(v) this = v;
-
+abstract Pointer(Int) {
 	public inline function isNull() {
 		return this == 0;
 	}
@@ -13,16 +6,16 @@ abstract Pointer(haxe.Int64) {
 		return cast (this + i);
 	}
 	public inline function sub( p : Pointer ) : Int {
-		return haxe.Int64.toInt(this - p.value);
+		return this - cast(p);
 	}
 	public inline function pageAddress() : Pointer {
-		return new Pointer(haxe.Int64.and(this,haxe.Int64.make(-1,~0xFFFF)));
+		return cast (this & ~0xFFFF);
 	}
 	public inline function toString() {
-		return "0x"+(this.high == 0 ? StringTools.hex(this.high, 8) : "")+StringTools.hex(this.low,8);
+		return "0x"+StringTools.hex(this, 8);
 	}
-	public inline function shift( k : Int ) : haxe.Int64 {
-		return haxe.Int64.shr(this,k);
+	public inline function shift( k : Int ) : Int {
+		return this >>> k;
 	}
 }
 
@@ -89,8 +82,6 @@ enum BlockTypeKind {
 }
 
 class Block {
-	public static var MARK_UID = 0;
-
 	public var page : Page;
 	public var bid : Int;
 	public var owner : Block;
@@ -98,7 +89,6 @@ class Block {
 	public var typeKind : BlockTypeKind;
 
 	public var depth : Int = -1;
-	public var mark : Int = -1;
 
 	public var subs : Array<Block>; // can be null
 	public var parents : Array<Block>; // if multiple owners
@@ -187,29 +177,3 @@ class Block {
 
 }
 
-@:generic
-class PointerMap<T> {
-
-	var lookup : Map<Int,Map<Int,T>>;
-
-	public function new() {
-		lookup = new Map();
-	}
-
-	public function set( p : Pointer, v : T ) {
-		var c = lookup.get(p.value.high);
-		if( c == null ) {
-			c = new Map();
-			lookup.set(p.value.high, c);
-		}
-		c.set(p.value.low, v);
-	}
-
-	public function get( p : Pointer ) : T {
-		if( p == null ) return null;
-		var c = lookup.get(p.value.high);
-		if( c == null ) return null;
-		return c.get(p.value.low);
-	}
-
-}

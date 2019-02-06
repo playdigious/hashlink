@@ -52,11 +52,11 @@ HL_PRIM int hl_date_now() {
 HL_PRIM vbyte *hl_date_to_string( int date, int *len ) {
 	char buf[127];
 	struct tm t;
-	time_t d = (time_t)(unsigned)date;
+	time_t d = (time_t)date;
 	int size;
 	uchar *out;
 	if( !localtime_r(&d,&t) )
-		hl_error("Invalid date");
+		hl_error("invalid date");
 	size = (int)strftime(buf,127,"%Y-%m-%d %H:%M:%S",&t);
 	out = (uchar*)hl_gc_alloc_noptr((size + 1) << 1);
 	hl_from_utf8(out,size,buf);
@@ -65,11 +65,11 @@ HL_PRIM vbyte *hl_date_to_string( int date, int *len ) {
 }
 
 HL_PRIM double hl_date_get_time( int date ) {
-	return ((unsigned)date) * 1000.;
+	return date * 1000.;
 }
 
 HL_PRIM int hl_date_from_time( double time ) {
-	return (int)(unsigned int)(time / 1000.);
+	return (int)(time / 1000.);
 }
 
 HL_PRIM int hl_date_from_string( vbyte *b, int len ) {
@@ -119,7 +119,7 @@ HL_PRIM int hl_date_new( int y, int mo, int d, int h, int m, int s ) {
 
 HL_PRIM void hl_date_get_inf( int date, int *y, int *mo, int *day, int *h, int *m, int *s, int *wday ) {
 	struct tm t;
-	time_t d = (time_t)(unsigned)date;
+	time_t d = (time_t)date;
 	if( !localtime_r(&d,&t) )
 		hl_error("invalid date");
 	if( y ) *y = t.tm_year + 1900;

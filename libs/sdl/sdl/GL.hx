@@ -34,11 +34,6 @@ class GL {
 		return false;
 	}
 
-	// non standard
-	public static function getConfigParameter( v : Int ) : Int {
-		return 0;
-	}
-
 	public static function isContextLost() : Bool {
 		return false;
 	}
@@ -217,6 +212,10 @@ class GL {
 	public static function texImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, image : hl.Bytes ) {
 	}
 
+	@:hlNative("sdl","gl_compressed_tex_image2d")
+	public static function compressedTexImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, size : Int, data : hl.Bytes ) {
+	}
+
 	@:hlNative("sdl","gl_tex_image3d")
 	public static function texImage3D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, depth : Int, border : Int, format : Int, type : Int, image : hl.Bytes ) {
 	}
@@ -245,9 +244,6 @@ class GL {
 
 	@:hlNative("sdl","gl_framebuffer_texture2d")
 	public static function framebufferTexture2D( target : Int, attach : Int, texTarget : Int, t : Texture, level : Int ) {
-	}
-
-	public static function framebufferTextureLayer( target : Int, attach : Int, t : Texture, level : Int, layer : Int ) {
 	}
 
 	public static function framebufferTexture( target : Int, attach : Int, t : Texture, level : Int ) {
@@ -319,9 +315,6 @@ class GL {
 	public static function vertexAttribIPointer( index : Int, size : Int, type : Int, stride : Int, position : Int ) {
 	}
 
-	public static function vertexAttribDivisor( index : Int, divisor : Int ) {
-	}
-
 	public static function deleteBuffer( b : Buffer ) {
 	}
 
@@ -331,9 +324,6 @@ class GL {
 	}
 
 	public static function uniform4fv( u : Uniform, buffer : hl.Bytes, bufPos : Int, count : Int ) {
-	}
-
-	public static function uniformMatrix4fv( u : Uniform, transpose : Bool, buffer : hl.Bytes, bufPos : Int, count : Int ) {
 	}
 
 	// compute
@@ -356,9 +346,6 @@ class GL {
 	}
 
 	public static function drawArraysInstanced( mode : Int, start : Int, count : Int, primcount : Int ) {
-	}
-
-	public static function multiDrawElementsIndirect( mode : Int, type : Int, data : hl.Bytes, count : Int, stride : Int ) {
 	}
 
 	// queries
@@ -396,15 +383,6 @@ class GL {
 	}
 
 	public static function deleteVertexArray( a : VertexArray ) : Void {
-	}
-
-	// uniform buffer
-
-	public static function getUniformBlockIndex( p : Program, name : String ) : Int {
-		return 0;
-	}
-
-	public static function uniformBlockBinding( p : Program, blockIndex : Int, blockBinding : Int ) : Void {
 	}
 
 	// ----- CONSTANTS -----
@@ -454,8 +432,6 @@ class GL {
 	/*      ONE_MINUS_DST_ALPHA */
 	/* BlendEquationSeparate */
 	public static inline var FUNC_ADD                       = 0x8006;
-	public static inline var FUNC_MIN                       = 0x8007;
-    public static inline var FUNC_MAX                       = 0x8008;
 	public static inline var BLEND_EQUATION                 = 0x8009;
 	public static inline var BLEND_EQUATION_RGB             = 0x8009;   /* same as BLEND_EQUATION */
 	public static inline var BLEND_EQUATION_ALPHA           = 0x883D;
@@ -615,11 +591,7 @@ class GL {
 
 	/* PixelFormat */
 	public static inline var DEPTH_COMPONENT                = 0x1902;
-	public static inline var RED                            = 0x1903;
-	public static inline var GREEN                          = 0x1904;
-	public static inline var BLUE                           = 0x1905;
 	public static inline var ALPHA                          = 0x1906;
-	public static inline var RG                             = 0x8227;
 	public static inline var RGB                            = 0x1907;
 	public static inline var RGBA                           = 0x1908;
 	public static inline var LUMINANCE                      = 0x1909;
@@ -633,12 +605,6 @@ class GL {
 	public static inline var RG16UI                         = 0x823A;
 	public static inline var RG16F                          = 0x822F;
 	public static inline var RG32F                          = 0x8230;
-	public static inline var R8								= 0x8229;
-	public static inline var RG8							= 0x822B;
-	public static inline var R16F							= 0x822D;
-	public static inline var R32F							= 0x822E;
-	public static inline var UNSIGNED_INT_2_10_10_10_REV	= 0x8368;
-	public static inline var UNSIGNED_INT_10F_11F_11F_REV	= 0x8C3B;
 
 	/* PixelType */
 	/*      UNSIGNED_BYTE */
@@ -659,6 +625,57 @@ class GL {
 	public static inline var R11F_G11F_B10F                 = 0x8C3A;
 	public static inline var ALPHA16F                       = 0x881C;
 	public static inline var ALPHA32F                       = 0x8816;
+
+	/* PVRTC */
+        public static inline var COMPRESSED_RGB_PVRTC_4BPPV1_IMG	= 0x8C00;
+        public static inline var COMPRESSED_RGB_PVRTC_2BPPV1_IMG	= 0x8C01;
+        public static inline var COMPRESSED_RGBA_PVRTC_4BPPV1_IMG	= 0x8C02;
+        public static inline var COMPRESSED_RGBA_PVRTC_2BPPV1_IMG	= 0x8C03;
+
+	/* ETC1 */
+	public static inline var COMPRESSED_RGB8_ETC1				= 0x8D64;
+
+	/* ETC2 / EAC */
+	public static inline var COMPRESSED_RGB8_ETC2           		= 0x9274;
+	public static inline var COMPRESSED_SRGB8_ETC2          		= 0x9275;
+	public static inline var COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2 	= 0x9276;
+	public static inline var COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2 	= 0x9277;
+	public static inline var COMPRESSED_RGBA8_ETC2_EAC      		= 0x9278;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ETC2_EAC 		= 0x9279;
+	public static inline var COMPRESSED_R11_EAC             		= 0x9270;
+	public static inline var COMPRESSED_SIGNED_R11_EAC      		= 0x9271;
+	public static inline var COMPRESSED_RG11_EAC            		= 0x9272;
+	public static inline var COMPRESSED_SIGNED_RG11_EAC     		= 0x9273;
+
+	/* ASTC */
+	public static inline var COMPRESSED_RGBA_ASTC_4x4   		= 0x93B0;
+	public static inline var COMPRESSED_RGBA_ASTC_5x4   		= 0x93B1;
+	public static inline var COMPRESSED_RGBA_ASTC_5x5   		= 0x93B2;
+	public static inline var COMPRESSED_RGBA_ASTC_6x5 		= 0x93B3;
+	public static inline var COMPRESSED_RGBA_ASTC_6x6   		= 0x93B4;
+	public static inline var COMPRESSED_RGBA_ASTC_8x5   		= 0x93B5;
+	public static inline var COMPRESSED_RGBA_ASTC_8x6   		= 0x93B6;
+	public static inline var COMPRESSED_RGBA_ASTC_8x8   		= 0x93B7;
+	public static inline var COMPRESSED_RGBA_ASTC_10x5  		= 0x93B8;
+	public static inline var COMPRESSED_RGBA_ASTC_10x6  		= 0x93B9;
+	public static inline var COMPRESSED_RGBA_ASTC_10x8  		= 0x93BA;
+	public static inline var COMPRESSED_RGBA_ASTC_10x10 		= 0x93BB;
+	public static inline var COMPRESSED_RGBA_ASTC_12x10 		= 0x93BC;
+	public static inline var COMPRESSED_RGBA_ASTC_12x12 		= 0x93BD;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_4x4 	= 0x93D0;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_5x4 	= 0x93D1;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_5x5 	= 0x93D2;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_6x5 	= 0x93D3;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_6x6 	= 0x93D4;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_8x5 	= 0x93D5;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_8x6 	= 0x93D6;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_8x8 	= 0x93D7;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_10x5 	= 0x93D8;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_10x6 	= 0x93D9;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_10x8 	= 0x93DA;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_10x10 	= 0x93DB;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_12x10 	= 0x93DC;
+	public static inline var COMPRESSED_SRGB8_ALPHA8_ASTC_12x12 	= 0x93DD;
 
 	/* Shaders */
 	public static inline var FRAGMENT_SHADER                  = 0x8B30;
@@ -736,7 +753,6 @@ class GL {
 	public static inline var TEXTURE_2D_MULTISAMPLE         = 0x9100;
 	public static inline var TEXTURE_3D                     = 0x806F;
 	public static inline var TEXTURE                        = 0x1702;
-	public static inline var TEXTURE_2D_ARRAY				= 0x8C1A;
 
 	public static inline var TEXTURE_CUBE_MAP_SEAMLESS      = 0x884F;
 	public static inline var TEXTURE_CUBE_MAP               = 0x8513;
@@ -835,7 +851,6 @@ class GL {
 	public static inline var RENDERBUFFER                   = 0x8D41;
 	public static inline var READ_FRAMEBUFFER               = 0x8CA8;
 	public static inline var DRAW_FRAMEBUFFER               = 0x8CA9;
-	public static inline var DRAW_INDIRECT_BUFFER			= 0x8F3F;
 
 	public static inline var RGBA4                          = 0x8056;
 	public static inline var RGB5_A1                        = 0x8057;

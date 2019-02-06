@@ -27,17 +27,10 @@ class Stats {
 		inf.mem += mem;
 	}
 
-	public function print( withSum = false ) {
+	public function print() {
 		allT.sort(function(i1, i2) return i1.mem - i2.mem);
-		var totCount = 0;
-		var totMem = 0;
-		for( i in allT ) {
-			totCount += i.count;
-			totMem += i.mem;
+		for( i in allT )
 			mem.log(i.count + " count, " + Memory.MB(i.mem) + " " + [for( tid in i.tl ) mem.types[tid].toString()].join(" > "));
-		}
-		if( withSum )
-			mem.log("Total: "+totCount+" count, "+Memory.MB(totMem));
 	}
 
 }
@@ -67,8 +60,8 @@ class Memory {
 	var toProcess : Array<Block>;
 	var tdynObj : TType;
 	var tdynObjData : TType;
-	var pointerBlock : PointerMap<Block>;
-	var pointerType : PointerMap<TType>;
+	var pointerBlock : Map<Pointer, Block>;
+	var pointerType : Map<Pointer, TType>;
 	var falseCandidates : Array<{ b : Block, f : Block, idx : Int }>;
 
 	function new() {
@@ -110,9 +103,7 @@ class Memory {
 	}
 
 	inline function readPointer() : Pointer {
-		var low = memoryDump.readInt32();
-		var high = is64 ? memoryDump.readInt32() : 0;
-		return cast haxe.Int64.make(high,low);
+		return cast memoryDump.readInt32();
 	}
 
 	public static function MB( v : Float ) {
@@ -134,6 +125,7 @@ class Memory {
 		bool32 = (flags & 2) != 0;
 
 		ptrBits = is64 ? 3 : 2;
+		if( is64 ) throw "64 bit not supported";
 
 		// load pages
 		var count = readInt();
@@ -231,7 +223,7 @@ class Memory {
 		if( memoryDump == null ) throw "Missing .dump file";
 		if( code.types.length != this.typesPointers.length ) throw "Types count mismatch";
 
-		pointerType = new PointerMap();
+		pointerType = new Map();
 		var cid = 0;
 		types = [for( i in 0...code.types.length ) new TType(i, code.types[i])];
 		for( i in 0...typesPointers.length ) {
@@ -252,16 +244,7 @@ class Memory {
 				}
 				var ct = new TType(tid, HFun({ args : args, ret : f.ret }), clparam);
 				types.push(ct);
-				var pt = closuresPointers[cid++];
-				if( pt != null )
-					pointerType.set(pt, ct);
-			case HObj(o):
-				if( o.tsuper != null )
-					for( j in 0...types.length )
-						if( types[j].t == o.tsuper ) {
-							types[i].parentClass = types[j];
-							break;
-						}
+				pointerType.set(closuresPointers[cid++], ct);
 			default:
 			}
 		}
@@ -276,9 +259,9 @@ class Memory {
 		}
 
 		blocks = [];
-		var pageMem = new PointerMap<Page>();
+		var pageMem = new Map();
 		var progress = 0;
-		pointerBlock = new PointerMap();
+		pointerBlock = new Map();
 
 		for( p in pages ) {
 			progress++;
@@ -560,21 +543,21 @@ class Memory {
 		ctx.print();
 	}
 
-	function resolveType( str ) {
-		for( t in types )
-			if( t.t.toString() == str )
-				return t;
-		log("Type not found '"+str+"'");
-		return null;
-	}
-
 	function locate( tstr : String, up = 0 ) {
-		var lt = resolveType(tstr);
-		if( lt == null ) return;
+		var lt = null;
+		for( t in types )
+			if( t.t.toString() == tstr ) {
+				lt = t;
+				break;
+			}
+		if( lt == null ) {
+			log("Type not found");
+			return;
+		}
 
 		var ctx = new Stats(this);
 		for( b in blocks )
-			if( b.type != null && b.type.match(lt) ) {
+			if( b.type == lt ) {
 				var tl = [];
 				var owner = b.owner;
 				if( owner != null ) {
@@ -591,38 +574,6 @@ class Memory {
 				ctx.addPath(tl, b.getMemSize());
 			}
 		ctx.print();
-	}
-
-	function count( tstr : String, excludes : Array<String> ) {
-		var t = resolveType(tstr);
-		if( t == null ) return;
-		var texclude = [];
-		for( e in excludes ) {
-			var t = resolveType(e);
-			if( t == null ) return;
-			texclude.push(t);
-		}
-		var ctx = new Stats(this);
-		Block.MARK_UID++;
-		var mark = [];
-		for( b in blocks )
-			if( b.type == t )
-				visitRec(b,ctx,[],mark);
-		while( mark.length > 0 ) {
-			var b = mark.pop();
-			for( s in b.subs )
-				visitRec(s,ctx,texclude,mark);
-		}
-		ctx.print(true);
-	}
-
-	function visitRec( b : Block, ctx : Stats, exclude : Array<TType>, mark : Array<Block> ) {
-		if( b.mark == Block.MARK_UID ) return;
-		b.mark = Block.MARK_UID;
-		if( b.type != null ) for( t in exclude ) if( b.type.match(t) ) return;
-		ctx.addPath(b.type == null ? [] : [b.type.tid],b.getMemSize());
-		if( b.subs != null )
-			mark.push(b);
 	}
 
 	function parents( tstr : String, up = 0 ) {
@@ -723,7 +674,7 @@ class Memory {
 		for( i in 0...size * size )
 			bmp[i] = 0xFF000000;
 		for( p in pages ) {
-			var index = p.addr.shift(BMP_BITS).low;
+			var index = p.addr.shift(BMP_BITS);
 			// reserved
 			for( i in 0...(p.size >> BMP_BITS) )
 				bmp[index+i] = 0xFF808080;
@@ -731,7 +682,7 @@ class Memory {
 				bmp[index + i] = 0xFFFFFF00; // YELLOW = GC MEMORY
 		}
 		for( b in blocks ) {
-			var index = b.getPointer().shift(BMP_BITS).low;
+			var index = b.getPointer().shift(BMP_BITS);
 			var color = b.page.memHasPtr() ? 0xFFFF0000 : 0xFF00FF00; // GREEN = data / RED = objects
 			for( i in 0...b.getMemSize() >> BMP_BITS )
 				bmp[index + i] = color;
@@ -775,23 +726,15 @@ class Memory {
 
 		//hl.Gc.dumpMemory(); Sys.command("cp memory.hl test.hl");
 
-		var code = null, memory = null;
 		var args = Sys.args();
 		while( args.length > 0 ) {
 			var arg = args.shift();
 			if( StringTools.endsWith(arg, ".hl") ) {
-				code = arg;
 				m.loadBytecode(arg);
 				continue;
 			}
-			memory = arg;
 			m.loadMemory(arg);
 		}
-		if( code != null && memory == null ) {
-			memory = new haxe.io.Path(code).dir+"/hlmemory.dump";
-			if( sys.FileSystem.exists(memory) ) m.loadMemory(memory);
-		}
-
 		m.check();
 
 		var stdin = Sys.stdin();
@@ -812,8 +755,6 @@ class Memory {
 				m.printUnknown();
 			case "locate":
 				m.locate(args.shift(), Std.parseInt(args.shift()));
-			case "count":
-				m.count(args.shift(), args);
 			case "parents":
 				m.parents(args.shift());
 			case "subs":

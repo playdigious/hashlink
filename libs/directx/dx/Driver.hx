@@ -183,7 +183,7 @@ abstract DxBool(Int) {
 
 @:enum abstract LayoutClassification(Int) {
 	var PerVertexData = 0;
-	var PerInstanceData = 1;
+	var PerInstanceData = 0;
 }
 
 @:keep
@@ -301,7 +301,7 @@ class Texture2dDesc {
 	var DecrSat = 5;
 	var Invert = 6;
 	var Incr = 7;
-	var Decr = 8;
+	var Desc = 8;
 }
 
 @:keep
@@ -465,21 +465,8 @@ class Driver {
 
 	public static var fullScreen(get, set) : Bool;
 
-	/**
-		Setup an error handler instead of getting String exceptions:
-		The first parameter is the DirectX error code
-		The second parameter is the removed reason code if the first is DXGI_ERROR_DEVICE_REMOVED
-		The third parameter is the line in directx.cpp sources where was triggered the error.
-		Allocation methods will return null if an error handler is setup and does not raise exception.
-	**/
-	public static function setErrorHandler( f : Int -> Int -> Int -> Void ) {
-	}
-
 	public static function create( win : Window, format : Format, flags : DriverInitFlags = None, restrictLevel = 0 ) {
 		return dxCreate(@:privateAccess win.win, format, flags, restrictLevel);
-	}
-
-	public static function disposeDriver( driver : DriverInstance ) {
 	}
 
 	public static function resize( width : Int, height : Int, format : Format ) : Bool {
@@ -558,9 +545,6 @@ class Driver {
 	public static function drawIndexed( indexCount : Int, startIndex : Int, baseVertex : Int ) : Void {
 	}
 
-	public static function drawIndexedInstancedIndirect( buffer : Resource, offset : Int ) : Void {
-	}
-
 	public static function vsSetShader( shader : Shader ) : Void {
 	}
 
@@ -601,7 +585,7 @@ class Driver {
 		return null;
 	}
 
-	public static function omSetDepthStencilState( state : DepthStencilState, ref : Int ) : Void {
+	public static function omSetDepthStencilState( state : DepthStencilState ) : Void {
 	}
 
 	public static function clearDepthStencilView( view : DepthStencilView, depth : Null<Float>, stencil : Null<Int> ) {

@@ -88,6 +88,6 @@ if(WIN32)
     install(
         TARGETS
             ssl.hdll
-        DESTINATION ${HDLL_DESTINATION}
+        DESTINATION .
     )
 endif()

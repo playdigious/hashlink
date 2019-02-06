@@ -11,8 +11,6 @@ HL_PRIM void HL_NAME(ui_init)() {
 }
 
 HL_PRIM int HL_NAME(ui_dialog)( const uchar *title, const uchar *message, int flags ) {
-	uprintf(USTR("[DIALOG] [%s]"), title);
-	uprintf(USTR(" %s\n"), title);
 	return 0;
 }
 
@@ -37,7 +35,7 @@ HL_PRIM void HL_NAME(ui_win_destroy)( wref *w ) {
 }
 
 HL_PRIM int HL_NAME(ui_loop)( bool blocking ) {
-	return 2;
+	return 1;
 }
 
 HL_PRIM void HL_NAME(ui_stop_loop)() {

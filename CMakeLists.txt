@@ -1,52 +1,49 @@
 cmake_minimum_required(VERSION 3.1)
 
-set(HL_VERSION_MAJOR 1)
-set(HL_VERSION_MINOR 9)
-set(HL_VERSION_PATCH 0)
-set(HL_VERSION ${HL_VERSION_MAJOR}.${HL_VERSION_MINOR}.${HL_VERSION_PATCH})
-
 cmake_policy(SET CMP0042 NEW)
 
-if(WIN32)
+include(GNUInstallDirs)
+include(FindPkgConfig)
+
+if (WIN32)
     project(hashlink C CXX) # C++ required for directx
 else()
     project(hashlink C)
 endif()
 
-include(GNUInstallDirs)
-include(FindPkgConfig)
-include(CTest)
-
 # force Unicode over Multi-byte
-if(MSVC)
+if (MSVC)
     add_definitions(-DUNICODE -D_UNICODE)
 endif()
 
-list(APPEND CMAKE_MODULE_PATH
-    ${CMAKE_CURRENT_SOURCE_DIR}/other/cmake
-)
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/other/cmake ${CMAKE_MODULE_PATH})
 
-if(CMAKE_VERSION VERSION_LESS "3.1")
-    set(CMAKE_C_FLAGS "-std=c11 ${CMAKE_C_FLAGS}")
-else()
-    set(CMAKE_C_STANDARD 11)
-    set(CMAKE_C_STANDARD_REQUIRED ON)
-endif()
+if (CMAKE_VERSION VERSION_LESS "3.1")
+    set (CMAKE_C_FLAGS "-std=c11 ${CMAKE_C_FLAGS}")
+else ()
+    set (CMAKE_C_STANDARD 11)
+endif ()
 
 # put output in "bin"
 
-set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin)
+set(OUTPUT_DIR ${CMAKE_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 
 # avoid the extra "Debug", "Release" directories
+# http://stackoverflow.com/questions/7747857/in-cmake-how-do-i-work-around-the-debug-and-release-directories-visual-studio-2
 foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
     string( TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG )
     set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${OUTPUT_DIR} )
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${OUTPUT_DIR} )
     set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${OUTPUT_DIR} )
-endforeach()
+endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
+
+set(HL_VERSION_MAJOR 0)
+set(HL_VERSION_MINOR 1)
+set(HL_VERSION_PATCH 0)
+set(HL_VERSION ${HL_VERSION_MAJOR}.${HL_VERSION_MINOR}.${HL_VERSION_PATCH})
 
 include_directories(
     src
@@ -79,13 +76,13 @@ file(GLOB std_srcs
     src/std/process.c
 )
 
-if(ANDROID)
+if (ANDROID)
     list(APPEND std_srcs
         src/std/sys_android.c
     )
 endif()
 
-if(IOS_PLATFORM)
+if (IOS_PLATFORM)
     list(APPEND std_srcs
         src/std/sys_ios.m
     )
@@ -97,14 +94,10 @@ add_library(libhl SHARED
     ${std_srcs}
 )
 
-set(public_headers
-    src/hl.h
-    src/hlc.h
-)
-
 set_target_properties(libhl
     PROPERTIES
-    PUBLIC_HEADER "${public_headers}"
+        PUBLIC_HEADER
+            "src/hl.h;src/hlc.h;src/hlc_main.c"
 )
 
 if(WIN32)
@@ -143,128 +136,49 @@ else()
     target_link_libraries(libhl m dl pthread)
 endif()
 
-if(BUILD_TESTING)
+#####################
+# hello.hl
 
-    #####################
-    # hello.hl
+find_program(
+    HAXE_COMPILER
+    haxe
+)
 
-    find_program(
-        HAXE_COMPILER
-        haxe
-    )
+add_custom_command(OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/hello.hl
+    COMMAND ${HAXE_COMPILER} -hl ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/hello.hl -cp ${CMAKE_SOURCE_DIR}/other/tests -main HelloWorld
+)
+add_custom_target(hello.hl ALL
+    DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/hello.hl
+)
 
-    add_custom_command(OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/hello.hl
-        COMMAND ${HAXE_COMPILER}
-            -hl ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/hello.hl
-            -cp ${CMAKE_SOURCE_DIR}/other/tests -main HelloWorld
-    )
-    add_custom_target(hello.hl ALL
-        DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/hello.hl
-    )
+#####################
+# Tests
 
-    #####################
-    # hello.c
-
-    add_custom_command(OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/hello.c
-        COMMAND ${HAXE_COMPILER}
-            -hl ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/hello.c
-            -cp ${CMAKE_SOURCE_DIR}/other/tests -main HelloWorld
-    )
-    add_executable(hello
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/hello.c
-    )
-    set_target_properties(hello
-        PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test
-    )
-    target_include_directories(hello
-        PRIVATE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test
-    )
-    target_link_libraries(hello
-        libhl
-    )
-
-    #####################
-    # Tests
-
-    add_test(NAME hello.hl
-        COMMAND hl ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test/hello.hl
-    )
-    add_test(NAME hello
-        COMMAND hello
-    )
-    add_test(NAME version
-        COMMAND hl --version
-    )
-    set_tests_properties(version
-        PROPERTIES
-        PASS_REGULAR_EXPRESSION "${HL_VERSION}"
-    )
-
-endif()
+include(CTest)
+add_test(NAME hello.hl
+    COMMAND hl ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/hello.hl
+)
 
 #####################
 # Packaging
-
-set(CPACK_OUTPUT_FILE_PREFIX ${OUTPUT_DIR})
 
 set(CPACK_PACKAGE_VENDOR "Haxe Foundation")
 set(CPACK_PACKAGE_VERSION_MAJOR ${HL_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${HL_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${HL_VERSION_PATCH})
-
-if(WIN32)
-    set(CPACK_GENERATOR "ZIP")
-else()
-    set(CPACK_GENERATOR "TGZ")
-endif()
-
-set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
-
-set(HDLL_DESTINATION
-    ${CMAKE_INSTALL_LIBDIR}
-)
+set(CPACK_GENERATOR ZIP)
 
 install(
     TARGETS
         hl
         libhl
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    DESTINATION .
+    PUBLIC_HEADER DESTINATION include
 )
 
-# uninstall target
-# https://gitlab.kitware.com/cmake/community/wikis/FAQ#can-i-do-make-uninstall-with-cmake
-if(NOT TARGET uninstall)
-    configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/other/cmake/cmake_uninstall.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-        IMMEDIATE @ONLY)
-
-    add_custom_target(uninstall
-        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+if (DEFINED ENV{APPVEYOR_REPO_COMMIT})
+    set(CPACK_PACKAGE_VERSION $ENV{APPVEYOR_REPO_COMMIT})
 endif()
-
-
-if(
-    NOT DEFINED ENV{APPVEYOR_REPO_TAG_NAME}
-    AND
-    DEFINED ENV{APPVEYOR_REPO_COMMIT}
-)
-    string(SUBSTRING $ENV{APPVEYOR_REPO_COMMIT} 0 7 short_commit)
-endif()
-
-if(NOT DEFINED ENV{TRAVIS_TAG} AND DEFINED ENV{TRAVIS_COMMIT})
-    string(SUBSTRING $ENV{TRAVIS_COMMIT} 0 7 short_commit)
-endif()
-
-if(DEFINED short_commit)
-    set(CPACK_PACKAGE_VERSION "${HL_VERSION}+${short_commit}")
-endif()
-
 
 include(CPack)
 

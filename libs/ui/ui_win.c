@@ -196,7 +196,7 @@ HL_PRIM void HL_NAME(ui_stop_loop)() {
 
 typedef struct {
 	hl_thread *thread;
-	DWORD original;
+	hl_thread *original;
 	void *callback;
 	double timeout;
 	int ticks;
@@ -205,9 +205,9 @@ typedef struct {
 
 static void sentinel_loop( vsentinel *s ) {
 	int time_ms = (int)((s->timeout * 1000.) / 16.);
-	HANDLE h = OpenThread(THREAD_ALL_ACCESS,FALSE,s->original);
-	CONTEXT regs;
-	regs.ContextFlags = CONTEXT_FULL;
+	hl_thread_registers *regs = (hl_thread_registers*)malloc(sizeof(int_val) * hl_thread_context_size());
+	int eip = hl_thread_context_index("eip");
+	int esp = hl_thread_context_index("esp");
 	while( true ) {
 		int k = 0;
 		int tick = s->ticks;
@@ -217,26 +217,16 @@ static void sentinel_loop( vsentinel *s ) {
 			if( hl_is_blocking() ) continue;
 			k++;
 			if( k == 16 ) {
-				if( hl_detect_debugger() ) {
-					k = 0;
-					continue;
-				}
 				// pause
-				SuspendThread(h);
-				GetThreadContext(h,&regs);
+				hl_thread_pause(s->original, true);
+				hl_thread_get_context(s->original,regs);
 				// simulate a call
-#				ifdef HL_64
-				*--(int_val*)regs.Rsp = regs.Rip;
-				*--(int_val*)regs.Rsp = regs.Rsp;
-				regs.Rip = (int_val)s->callback;
-#				else
-				*--(int_val*)regs.Esp = regs.Eip;
-				*--(int_val*)regs.Esp = regs.Esp;
-				regs.Eip = (int_val)s->callback;
-#				endif
+				*--(int_val*)regs[esp] = regs[eip];
+				*--(int_val*)regs[esp] = regs[esp];
+				regs[eip] = (int_val)s->callback;
 				// resume
-				SetThreadContext(h,&regs);
-				ResumeThread(h);
+				hl_thread_set_context(s->original,regs);
+				hl_thread_pause(s->original, false);
 				break;
 			}
 		}
@@ -252,11 +242,9 @@ HL_PRIM vsentinel *HL_NAME(ui_start_sentinel)( double timeout, vclosure *c ) {
 	s->timeout = timeout;
 	s->ticks = 0;
 	s->pause = false;
-	s->original = GetCurrentThreadId();
+	s->original = hl_thread_current();
 	s->callback = c->fun;
-#	ifdef HL_THREADS
 	s->thread = hl_thread_start(sentinel_loop,s,false);
-#	endif
 	return s;
 }
 
@@ -291,7 +279,7 @@ HL_PRIM vbyte *HL_NAME(ui_choose_file)( bool forSave, vdynamic *options ) {
 		int i, pos = 0;
 		for(i=0;i<filters->size;i++) {
 			wchar_t *str = hl_aptr(filters,wchar_t*)[i];
-			int len = (int)wcslen(str);
+			int len = wcslen(str);
 			if( pos + len > 1024 ) return false;
 			memcpy(filterStr + pos, str, (len + 1) << 1);
 			pos += len + 1;
@@ -316,7 +304,7 @@ HL_PRIM vbyte *HL_NAME(ui_choose_file)( bool forSave, vdynamic *options ) {
 		if( !GetOpenFileName(&op) )
 			return NULL;
 	}
-	return hl_copy_bytes((vbyte*)outputFile, (int)(wcslen(outputFile)+1)*2);
+	return hl_copy_bytes((vbyte*)outputFile, (wcslen(outputFile)+1)*2);
 }
 
 

@@ -26,6 +26,6 @@ if(WIN32)
     install(
         TARGETS
             video.hdll
-        DESTINATION ${HDLL_DESTINATION}
+        DESTINATION .
     )
 endif()

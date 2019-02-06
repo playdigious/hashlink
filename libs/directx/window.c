@@ -50,16 +50,11 @@ typedef struct {
 	dx_event events[MAX_EVENTS];
 	int event_count;
 	int next_event;
-	bool is_over;
 } dx_events;
 
 typedef struct HWND__ dx_window;
 
 static dx_window *cur_clip_cursor_window = NULL;
-
-static dx_events *get_events(HWND wnd) {
-	return (dx_events*)GetWindowLongPtr(wnd,GWLP_USERDATA);
-}
 
 static void updateClipCursor(HWND wnd) {
 	if (cur_clip_cursor_window == wnd) {
@@ -74,7 +69,7 @@ static void updateClipCursor(HWND wnd) {
 }
 
 static dx_event *addEvent( HWND wnd, EventType type ) {
-	dx_events *buf = get_events(wnd);
+	dx_events *buf = (dx_events*)GetWindowLongPtr(wnd,GWLP_USERDATA);
 	dx_event *e;
 	if( buf->event_count == MAX_EVENTS )
 		e = &buf->events[MAX_EVENTS-1];
@@ -106,7 +101,7 @@ static LRESULT CALLBACK WndProc( HWND wnd, UINT umsg, WPARAM wparam, LPARAM lpar
 		break;
 	case WM_SIZE:
 		{
-			dx_events *buf = get_events(wnd);
+			dx_events *buf = (dx_events*)GetWindowLongPtr(wnd,GWLP_USERDATA);
 			if( buf->event_count > buf->next_event && buf->events[buf->event_count-1].type == WindowState && buf->events[buf->event_count-1].state == Resize )
 				buf->event_count--;
 		}
@@ -120,29 +115,11 @@ static LRESULT CALLBACK WndProc( HWND wnd, UINT umsg, WPARAM wparam, LPARAM lpar
 	case WM_RBUTTONUP: addMouse(MouseUp,3); break;
 	case WM_XBUTTONUP: addMouse(MouseDown,3 + HIWORD(wparam)); break;
 	case WM_XBUTTONDOWN: addMouse(MouseUp,3 + HIWORD(wparam)); break;
+	case WM_MOUSEMOVE: addMouse(MouseMove,0); break;
 	case WM_MOUSEWHEEL: addMouse(MouseWheel,0); e->wheelDelta = ((int)(short)HIWORD(wparam)) / 120; break;
 	case WM_SYSCOMMAND:
 		if( wparam == SC_KEYMENU && (lparam>>16) <= 0 )
 			return 0;
-		break;	
-	case WM_MOUSEMOVE: 
-		{
-			dx_events *evt = get_events(wnd);
-			if( !evt->is_over ) {
-				TRACKMOUSEEVENT ev;
-				ev.cbSize = sizeof(ev);
-				ev.dwFlags = TME_LEAVE;
-				ev.hwndTrack = wnd;
-				TrackMouseEvent(&ev);
-				evt->is_over = true;
-				addState(Enter);
-			}
-			addMouse(MouseMove,0); 
-		}
-		break;
-	case WM_MOUSELEAVE:
-		addState(Leave);
-		get_events(wnd)->is_over = false;
 		break;
 	case WM_KEYDOWN:
 	case WM_SYSKEYDOWN:
@@ -150,7 +127,7 @@ static LRESULT CALLBACK WndProc( HWND wnd, UINT umsg, WPARAM wparam, LPARAM lpar
 	case WM_SYSKEYUP:
 		// right alt has triggered a control !
 		if( wparam == VK_MENU && lparam & (1<<24) ) {
-			dx_events *buf = get_events(wnd);
+			dx_events *buf = (dx_events*)GetWindowLongPtr(wnd,GWLP_USERDATA);
 			if( buf->event_count > buf->next_event && buf->events[buf->event_count-1].type == (umsg == WM_KEYUP ? KeyUp : KeyDown) && buf->events[buf->event_count-1].keyCode == (VK_CONTROL|256) ) {
 				buf->event_count--;
 				//printf("CANCEL\n");
@@ -325,14 +302,14 @@ HL_PRIM void HL_NAME(win_destroy)(dx_window *win) {
 		cur_clip_cursor_window = NULL;
 		ClipCursor(NULL);
 	}
-	dx_events *buf = get_events(win);
+	dx_events *buf = (dx_events*)GetWindowLongPtr(win,GWLP_USERDATA);
 	free(buf);
 	SetWindowLongPtr(win,GWLP_USERDATA,0);
 	DestroyWindow(win);
 }
 
 HL_PRIM bool HL_NAME(win_get_next_event)( dx_window *win, dx_event *e ) {
-	dx_events *buf = get_events(win);
+	dx_events *buf = (dx_events*)GetWindowLongPtr(win,GWLP_USERDATA);
 	hl_type *save;
 	if( !buf ) {
 		e->type = Quit;

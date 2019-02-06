@@ -175,6 +175,6 @@ if(WIN32)
     install(
         TARGETS
             bullet.hdll
-        DESTINATION ${HDLL_DESTINATION}
+        DESTINATION .
     )
 endif()

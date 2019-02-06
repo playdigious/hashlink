@@ -23,7 +23,8 @@
 
 HL_PRIM void hl_gc_set_track( void *f );
 
-static int track_depth = 10;
+static int track_depth = 5;
+static void **track_buffer = NULL;
 
 typedef struct {
 	hl_type *t;
@@ -37,7 +38,6 @@ static unsigned int *hashes = NULL;
 static bucket *buckets = NULL;
 static int bcount = 0;
 static int max_buckets = 0;
-static hl_mutex *track_lock = NULL;
 
 int hl_internal_capture_stack( void **stack, int size );
 
@@ -106,34 +106,24 @@ static bucket *bucket_find_insert( unsigned int hash, void **stack, int count ) 
 	return b;
 }
 
-static void init_lock() {
-	hl_thread_info *tinf = hl_get_thread();
-	tinf->exc_flags |= HL_TRACK_DISABLE;
-	track_lock = hl_mutex_alloc(true);
-	hl_add_root(&track_lock);
-	tinf->exc_flags &= ~HL_TRACK_DISABLE;
-}
-
 static void on_alloc( hl_type *t, int size, int flags, void *ptr ) {
 	static unsigned int prev_hash = 0, prev_hash2 = 0;
 	static bucket *prev_b = NULL, *prev_b2 = NULL;
 	int count, i;
 	unsigned int hash;
 	bucket *b;
-	hl_thread_info *tinf = hl_get_thread();
-	if( track_lock == NULL ) init_lock();
-	count = hl_internal_capture_stack(tinf->exc_stack_trace,track_depth);
+	if( track_buffer == NULL ) track_buffer = malloc(sizeof(void*)*track_depth);
+	count = hl_internal_capture_stack(track_buffer,track_depth);
 	hash = -count;
 	for(i=0;i<count;i++)
-		hash = (hash * 31) + (((unsigned int)(int_val)tinf->exc_stack_trace[i]) >> 1);
+		hash = (hash * 31) + (((unsigned int)(int_val)track_buffer[i]) >> 1);
 	// look for bucket
-	hl_mutex_acquire(track_lock);
-	if( hash == prev_hash && prev_b!=NULL ) {
+	if( hash == prev_hash ) {
 		b = prev_b;
-	} else if( hash == prev_hash2 && prev_b2!=NULL ) {
+	} else if( hash == prev_hash2 ) {
 		b = prev_b2;
 	} else {
-		b = bucket_find_insert(hash, tinf->exc_stack_trace, count);
+		b = bucket_find_insert(hash, track_buffer, count);
 		prev_hash2 = prev_hash;
 		prev_b2 = prev_b;
 		prev_hash = hash;
@@ -142,30 +132,15 @@ static void on_alloc( hl_type *t, int size, int flags, void *ptr ) {
 	b->t = t;
 	b->alloc_count++;
 	b->total_size += size;
-	hl_mutex_release(track_lock);
 }
 
 HL_PRIM void hl_track_init() {
 	hl_gc_set_track(on_alloc);
 }
 
-HL_PRIM void hl_track_stop() {
-	hl_gc_set_track(NULL);
-}
-
-HL_PRIM void hl_track_lock( bool lock ) {
-	if( !track_lock ) init_lock();
-	if( lock )
-		hl_mutex_acquire(track_lock);
-	else
-		hl_mutex_release(track_lock);
-}
-
 HL_PRIM int hl_track_count( int *depth ) {
-	int value;
-	value = bcount;
 	*depth = track_depth;
-	return value;
+	return bcount;
 }
 
 HL_PRIM void hl_track_entry( int id, hl_type **t, int *allocs, int *size, varray *stack ) {
@@ -177,30 +152,6 @@ HL_PRIM void hl_track_entry( int id, hl_type **t, int *allocs, int *size, varray
 	memcpy(hl_aptr(stack,void*), b->stack, b->stack_count * sizeof(void*));
 }
 
-HL_PRIM bool hl_track_enabled() {
-	hl_thread_info *t = hl_get_thread();
-	return t && (t->exc_flags & HL_TRACK_DISABLE) == 0;
-}
-
-HL_PRIM void hl_track_enable( bool b ) {
-	hl_thread_info *t = hl_get_thread();
-	if( t ) {
-		if( !b )
-			t->exc_flags |= HL_TRACK_DISABLE;
-		else
-			t->exc_flags &= ~HL_TRACK_DISABLE;
-	}
-}
-
-HL_PRIM void hl_track_reset() {
-	bcount = 0;
-}
-
 DEFINE_PRIM(_VOID, track_init, _NO_ARG);
-DEFINE_PRIM(_VOID, track_stop, _NO_ARG);
 DEFINE_PRIM(_I32, track_count, _REF(_I32));
 DEFINE_PRIM(_VOID, track_entry, _I32 _REF(_TYPE) _REF(_I32) _REF(_I32) _ARR);
-DEFINE_PRIM(_VOID, track_lock, _BOOL);
-DEFINE_PRIM(_VOID, track_enable, _BOOL);
-DEFINE_PRIM(_BOOL, track_enabled, _NO_ARG);
-DEFINE_PRIM(_VOID, track_reset, _NO_ARG);

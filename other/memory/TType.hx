@@ -12,7 +12,6 @@ class TType {
 	public var constructs : Array<Array<TType>>;
 	public var nullWrap : TType;
 	public var ptrTags : haxe.io.Bytes;
-	public var parentClass : TType;
 
 	public var falsePositive = 0;
 	public var falsePositiveIndexes = [];
@@ -28,12 +27,6 @@ class TType {
 		default:
 			hasPtr = t.containsPointer();
 		}
-	}
-
-	public function match( t : TType ) {
-		if( t == this ) return true;
-		if( parentClass != null ) return parentClass.match(t);
-		return false;
 	}
 
 	function tagPtr( pos : Int ) {

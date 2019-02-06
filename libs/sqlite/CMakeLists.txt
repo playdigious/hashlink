@@ -17,5 +17,5 @@ target_link_libraries(sqlite.hdll
 install(
     TARGETS
         sqlite.hdll
-    DESTINATION ${HDLL_DESTINATION}
+    DESTINATION .
 )
