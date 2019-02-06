@@ -34,6 +34,11 @@ class GL {
 		return false;
 	}
 
+	// non standard
+	public static function getConfigParameter( v : Int ) : Int {
+		return 0;
+	}
+
 	public static function isContextLost() : Bool {
 		return false;
 	}
@@ -246,6 +251,9 @@ class GL {
 	public static function framebufferTexture2D( target : Int, attach : Int, texTarget : Int, t : Texture, level : Int ) {
 	}
 
+	public static function framebufferTextureLayer( target : Int, attach : Int, t : Texture, level : Int, layer : Int ) {
+	}
+
 	public static function framebufferTexture( target : Int, attach : Int, t : Texture, level : Int ) {
 	}
 
@@ -315,6 +323,9 @@ class GL {
 	public static function vertexAttribIPointer( index : Int, size : Int, type : Int, stride : Int, position : Int ) {
 	}
 
+	public static function vertexAttribDivisor( index : Int, divisor : Int ) {
+	}
+
 	public static function deleteBuffer( b : Buffer ) {
 	}
 
@@ -324,6 +335,9 @@ class GL {
 	}
 
 	public static function uniform4fv( u : Uniform, buffer : hl.Bytes, bufPos : Int, count : Int ) {
+	}
+
+	public static function uniformMatrix4fv( u : Uniform, transpose : Bool, buffer : hl.Bytes, bufPos : Int, count : Int ) {
 	}
 
 	// compute
@@ -346,6 +360,9 @@ class GL {
 	}
 
 	public static function drawArraysInstanced( mode : Int, start : Int, count : Int, primcount : Int ) {
+	}
+
+	public static function multiDrawElementsIndirect( mode : Int, type : Int, data : hl.Bytes, count : Int, stride : Int ) {
 	}
 
 	// queries
@@ -383,6 +400,15 @@ class GL {
 	}
 
 	public static function deleteVertexArray( a : VertexArray ) : Void {
+	}
+
+	// uniform buffer
+
+	public static function getUniformBlockIndex( p : Program, name : String ) : Int {
+		return 0;
+	}
+
+	public static function uniformBlockBinding( p : Program, blockIndex : Int, blockBinding : Int ) : Void {
 	}
 
 	// ----- CONSTANTS -----
@@ -432,6 +458,8 @@ class GL {
 	/*      ONE_MINUS_DST_ALPHA */
 	/* BlendEquationSeparate */
 	public static inline var FUNC_ADD                       = 0x8006;
+	public static inline var FUNC_MIN                       = 0x8007;
+    public static inline var FUNC_MAX                       = 0x8008;
 	public static inline var BLEND_EQUATION                 = 0x8009;
 	public static inline var BLEND_EQUATION_RGB             = 0x8009;   /* same as BLEND_EQUATION */
 	public static inline var BLEND_EQUATION_ALPHA           = 0x883D;
@@ -591,7 +619,11 @@ class GL {
 
 	/* PixelFormat */
 	public static inline var DEPTH_COMPONENT                = 0x1902;
+	public static inline var RED                            = 0x1903;
+	public static inline var GREEN                          = 0x1904;
+	public static inline var BLUE                           = 0x1905;
 	public static inline var ALPHA                          = 0x1906;
+	public static inline var RG                             = 0x8227;
 	public static inline var RGB                            = 0x1907;
 	public static inline var RGBA                           = 0x1908;
 	public static inline var LUMINANCE                      = 0x1909;
@@ -605,6 +637,12 @@ class GL {
 	public static inline var RG16UI                         = 0x823A;
 	public static inline var RG16F                          = 0x822F;
 	public static inline var RG32F                          = 0x8230;
+	public static inline var R8								= 0x8229;
+	public static inline var RG8							= 0x822B;
+	public static inline var R16F							= 0x822D;
+	public static inline var R32F							= 0x822E;
+	public static inline var UNSIGNED_INT_2_10_10_10_REV	= 0x8368;
+	public static inline var UNSIGNED_INT_10F_11F_11F_REV	= 0x8C3B;
 
 	/* PixelType */
 	/*      UNSIGNED_BYTE */
@@ -753,6 +791,7 @@ class GL {
 	public static inline var TEXTURE_2D_MULTISAMPLE         = 0x9100;
 	public static inline var TEXTURE_3D                     = 0x806F;
 	public static inline var TEXTURE                        = 0x1702;
+	public static inline var TEXTURE_2D_ARRAY				= 0x8C1A;
 
 	public static inline var TEXTURE_CUBE_MAP_SEAMLESS      = 0x884F;
 	public static inline var TEXTURE_CUBE_MAP               = 0x8513;
@@ -851,6 +890,7 @@ class GL {
 	public static inline var RENDERBUFFER                   = 0x8D41;
 	public static inline var READ_FRAMEBUFFER               = 0x8CA8;
 	public static inline var DRAW_FRAMEBUFFER               = 0x8CA9;
+	public static inline var DRAW_INDIRECT_BUFFER			= 0x8F3F;
 
 	public static inline var RGBA4                          = 0x8056;
 	public static inline var RGB5_A1                        = 0x8057;
