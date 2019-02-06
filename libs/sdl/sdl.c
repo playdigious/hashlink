@@ -7,7 +7,7 @@
 #    include <SDL_syswm.h>
 #	 include <time.h>
 #else
-#    include <SDL2/SDL.h>
+#	include <SDL2/SDL.h>
 #endif
 
 #if defined (HL_IOS) || defined(HL_TVOS)
@@ -28,7 +28,7 @@ extern SDL_Window *Android_Window;
 #endif
 
 #ifndef SDL_MAJOR_VERSION
-#    error "SDL2 SDK not found in hl/include/sdl/"
+#	error "SDL2 SDK not found in hl/include/sdl/"
 #endif
 
 #include <time.h>

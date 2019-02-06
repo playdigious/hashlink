@@ -23,11 +23,11 @@
 #define HL_H
 
 /**
-	Detailed documentation can be found here: 
+	Detailed documentation can be found here:
 	https://github.com/HaxeFoundation/hashlink/wiki/
 **/
 
-#define HL_VERSION	0x150
+#define HL_VERSION	0x190
 
 #if defined(_WIN32)
 #	define HL_WIN
@@ -127,6 +127,20 @@
 #	define HL_DEBUG
 #endif
 
+#ifndef HL_NO_THREADS
+#	define HL_THREADS
+#	ifdef HL_VCC
+#		define HL_THREAD_VAR __declspec( thread )
+#		define HL_THREAD_STATIC_VAR HL_THREAD_VAR static
+#	else
+#		define HL_THREAD_VAR __thread
+#		define HL_THREAD_STATIC_VAR static HL_THREAD_VAR
+#	endif
+#else
+#	define HL_THREAD_VAR
+#	define HL_THREAD_STATIC_VAR static
+#endif
+
 #include <stddef.h>
 #ifndef HL_VCC
 #	include <stdint.h>
@@ -190,8 +204,10 @@ typedef unsigned long long uint64;
 // -------------- UNICODE -----------------------------------
 
 #if defined(HL_WIN) && !defined(HL_LLVM)
-#ifdef HL_WIN_DESKTOP
+#if defined(HL_WIN_DESKTOP) && !defined(HL_MINGW)
 #	include <Windows.h>
+#elif defined(HL_WIN_DESKTOP) && defined(HL_MINGW)
+#	include<windows.h>
 #else
 #	include <xdk.h>
 #endif
@@ -208,6 +224,10 @@ typedef wchar_t	uchar;
 #	define utoi(s,end)	wcstol(s,end,10)
 #	define ucmp(a,b)	wcscmp(a,b)
 #	define utostr(out,size,str) wcstombs(out,str,size)
+#elif defined(HL_MAC)
+typedef uint16_t uchar;
+#	undef USTR
+#	define USTR(str)	u##str
 #else
 #	include <stdarg.h>
 #if defined(HL_IOS) || defined(HL_TVOS) || defined(HL_MAC)
@@ -239,7 +259,7 @@ C_FUNCTION_END
 
 #if defined(HL_VCC)
 #	define hl_debug_break()	if( IsDebuggerPresent() ) __debugbreak()
-#elif defined(HL_PS)
+#elif defined(HL_PS) && defined(_DEBUG)
 #	define hl_debug_break()	__debugbreak()
 #elif defined(HL_NX)
 C_FUNCTION_BEGIN
@@ -265,6 +285,14 @@ C_FUNCTION_END
 #	define hl_debug_break()
 #endif
 
+#ifdef HL_VCC
+#	define HL_NO_RETURN(f) __declspec(noreturn) f
+#	define HL_UNREACHABLE
+#else
+#	define HL_NO_RETURN(f) f __attribute__((noreturn))
+#	define HL_UNREACHABLE __builtin_unreachable()
+#endif
+
 // ---- TYPES -------------------------------------------
 
 typedef enum {
@@ -288,8 +316,9 @@ typedef enum {
 	HABSTRACT=17,
 	HENUM	= 18,
 	HNULL	= 19,
+	HMETHOD = 20,
 	// ---------
-	HLAST	= 20,
+	HLAST	= 21,
 	_H_FORCE_INT = 0x7FFFFFFF
 } hl_type_kind;
 
@@ -726,9 +755,9 @@ typedef struct {
 #	endif
 #elif defined(LIBHL_STATIC)
 #	ifdef __cplusplus
-#		define	HL_PRIM				extern "C" 
+#		define	HL_PRIM				extern "C"
 #	else
-#		define	HL_PRIM				
+#		define	HL_PRIM
 #	endif
 #define DEFINE_PRIM_WITH_NAME(t,name,args,realName)
 #else
@@ -738,6 +767,16 @@ typedef struct {
 #		define	HL_PRIM				EXPORT
 #	endif
 #	define DEFINE_PRIM_WITH_NAME	_DEFINE_PRIM_WITH_NAME
+#endif
+
+#if defined(HL_GCC) && !defined(HL_CONSOLE)
+#	ifdef HL_CLANG
+#		define HL_NO_OPT	__attribute__ ((optnone))
+#	else
+#		define HL_NO_OPT	__attribute__((optimize("-O0")))
+#	endif
+#else
+#	define HL_NO_OPT
 #endif
 
 // -------------- EXTRA ------------------------------------

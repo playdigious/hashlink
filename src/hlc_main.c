@@ -27,14 +27,23 @@
 #endif
 
 #ifdef HL_WIN_DESKTOP
+#	define CONST
 #	pragma warning(disable:4091)
+#if !defined(HL_MINGW)
 #	include <DbgHelp.h>
+#else
+#	include <dbghelp.h>
+#endif
 #	pragma comment(lib, "Dbghelp.lib")
+#	undef CONST
 #endif
 
 #ifdef HL_CONSOLE
 extern void sys_global_init();
 extern void sys_global_exit();
+#else
+#define sys_global_init()
+#define sys_global_exit()
 #endif
 
 

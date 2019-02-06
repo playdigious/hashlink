@@ -117,10 +117,6 @@ HL_PRIM vbyte *hl_sys_string() {
 	return (vbyte*)sys_platform_name();
 #elif defined(HL_WIN) || defined(HL_CYGWIN) || defined(HL_MINGW)
 	return (vbyte*)USTR("Windows");
-#elif defined(HL_GNUKBSD)
-	return (vbyte*)USTR("GNU/kFreeBSD");
-#elif defined(HL_LINUX)
-	return (vbyte*)USTR("Linux");
 #elif defined(HL_BSD)
 	return (vbyte*)USTR("BSD");
 #elif defined(HL_MAC)
@@ -131,6 +127,10 @@ HL_PRIM vbyte *hl_sys_string() {
 	return (vbyte*)USTR("tvOS");
 #elif defined(HL_ANDROID)
 	return (vbyte*)USTR("Android");
+#elif defined(HL_GNUKBSD)
+	return (vbyte*)USTR("GNU/kFreeBSD");
+#elif defined(HL_LINUX)
+	return (vbyte*)USTR("Linux");
 #else
 #error Unknown system string
 #endif
@@ -146,7 +146,7 @@ HL_PRIM vbyte *hl_sys_locale() {
 #elif __ANDROID__
 	return (vbyte *) hl_to_utf16(getLocaleLanguage());
 #else
-	return (vbyte*)setlocale(LC_ALL,NULL);
+	return (vbyte*)setlocale(LC_ALL, NULL);
 #endif
 }
 
@@ -215,6 +215,12 @@ HL_PRIM varray *hl_sys_env() {
 	pchar **e = environ;
 	pchar **arr;
 	int count = 0;
+#	ifdef HL_WIN_DESKTOP
+	if( e == NULL ) {
+		_wgetenv(L"");
+		e = environ;
+	}
+#	endif
 	while( *e ) {
 		pchar *x = pstrchr(*e,'=');
 		if( x == NULL ) {
@@ -631,10 +637,13 @@ HL_PRIM void hl_sys_init(void **args, int nargs, void *hlfile) {
 	sys_args = (pchar**)args;
 	sys_nargs = nargs;
 	hl_file = hlfile;
+#	ifdef HL_WIN
+	setlocale(LC_CTYPE, ""); // printf to current locale
+#	endif
 }
 
 HL_PRIM vbyte *hl_sys_hl_file() {
-	return hl_file != NULL ? hl_file : hl_sys_exe_path();
+	return hl_file!=NULL ? (vbyte*)hl_file : hl_sys_exe_path();
 }
 
 #ifndef HL_MOBILE
