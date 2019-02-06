@@ -25,6 +25,7 @@ typedef ID3D11DeviceChild dx_pointer;
 
 static dx_driver *driver = NULL;
 static IDXGIFactory *factory = NULL;
+static vclosure *on_dx_error = NULL;
 
 static IDXGIFactory *GetDXGI() {
 	if( factory == NULL && CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory) != S_OK )
@@ -33,12 +34,32 @@ static IDXGIFactory *GetDXGI() {
 }
 
 static void ReportDxError( HRESULT err, int line ) {
+	if( on_dx_error ) {
+		vdynamic args[3];
+		vdynamic *vargs[3] = { &args[0], &args[1], &args[2] };
+		args[0].t = &hlt_i32;
+		args[1].t = &hlt_i32;
+		args[2].t = &hlt_i32;
+		args[0].v.i = (int)err;
+		args[1].v.i = (err == DXGI_ERROR_DEVICE_REMOVED ? (int)driver->device->GetDeviceRemovedReason() : 0);
+		args[2].v.i = line;
+		hl_dyn_call(on_dx_error,vargs,3);
+		return;
+	}
 	if( err == DXGI_ERROR_DEVICE_REMOVED && driver ){
 		err = driver->device->GetDeviceRemovedReason();
-		hl_error_msg(USTR("DXGI_ERROR_DEVICE_REMOVED reason 0x%X line %d"),(DWORD)err,line);
+		hl_error("DXGI_ERROR_DEVICE_REMOVED reason 0x%X line %d",(DWORD)err,line);
 	}else{
-		hl_error_msg(USTR("DXERROR %X line %d"),(DWORD)err,line);
+		hl_error("DXERROR %X line %d",(DWORD)err,line);
 	}
+}
+
+HL_PRIM void HL_NAME(set_error_handler)( vclosure *c ) {
+	if( !on_dx_error ) {
+		if( !c ) return;
+		hl_add_root(&on_dx_error);
+	}
+	on_dx_error = c;
 }
 
 HL_PRIM dx_driver *HL_NAME(create)( HWND window, int format, int flags, int restrictLevel ) {
@@ -92,6 +113,14 @@ HL_PRIM dx_driver *HL_NAME(create)( HWND window, int format, int flags, int rest
 
 	driver = d;
 	return d;
+}
+
+HL_PRIM void HL_NAME(dispose_driver)( dx_driver *d ) {
+	d->swapchain->Release();
+	d->device->Release();
+	d->context->Release();
+	if( driver == d )
+		driver = NULL;
 }
 
 HL_PRIM dx_driver *HL_NAME(get_driver)(){
@@ -152,7 +181,7 @@ HL_PRIM void HL_NAME(clear_color)( dx_pointer *rt, double r, double g, double b,
 
 HL_PRIM void HL_NAME(present)( int interval, int flags ) {
 	HRESULT ret = driver->swapchain->Present(interval, flags);
-	if (ret != S_OK) ReportDxError(ret, __LINE__);
+	if (ret != S_OK && ret != DXGI_STATUS_OCCLUDED) ReportDxError(ret, __LINE__);
 }
 
 HL_PRIM const uchar *HL_NAME(get_device_name)() {
@@ -261,6 +290,10 @@ HL_PRIM dx_pointer *HL_NAME(create_pixel_shader)( vbyte *code, int size ) {
 
 HL_PRIM void HL_NAME(draw_indexed)( int count, int start, int baseVertex ) {
 	driver->context->DrawIndexed(count,start,baseVertex);
+}
+
+HL_PRIM void HL_NAME(draw_indexed_instanced_indirect)( dx_resource *r, int offset ) {
+	driver->context->DrawIndexedInstancedIndirect((ID3D11Buffer*)r, (UINT)offset);
 }
 
 HL_PRIM void HL_NAME(vs_set_shader)( dx_pointer *s ) {
@@ -406,7 +439,9 @@ HL_PRIM void HL_NAME(debug_print)( vbyte *b ) {
 #define _POINTER _ABSTRACT(dx_pointer)
 #define _RESOURCE _ABSTRACT(dx_resource)
 
+DEFINE_PRIM(_VOID, set_error_handler, _FUN(_VOID, _I32 _I32 _I32));
 DEFINE_PRIM(_DRIVER, create, _ABSTRACT(dx_window) _I32 _I32 _I32);
+DEFINE_PRIM(_VOID, dispose_driver, _DRIVER);
 DEFINE_PRIM(_BOOL, resize, _I32 _I32 _I32);
 DEFINE_PRIM(_RESOURCE, get_back_buffer, _NO_ARG);
 DEFINE_PRIM(_POINTER, create_render_target_view, _RESOURCE _DYN);
@@ -428,6 +463,7 @@ DEFINE_PRIM(_BYTES, disassemble_shader, _BYTES _I32 _I32 _BYTES _REF(_I32));
 DEFINE_PRIM(_POINTER, create_vertex_shader, _BYTES _I32);
 DEFINE_PRIM(_POINTER, create_pixel_shader, _BYTES _I32);
 DEFINE_PRIM(_VOID, draw_indexed, _I32 _I32 _I32);
+DEFINE_PRIM(_VOID, draw_indexed_instanced_indirect, _RESOURCE _I32);
 DEFINE_PRIM(_VOID, vs_set_shader, _POINTER);
 DEFINE_PRIM(_VOID, vs_set_constant_buffers, _I32 _I32 _REF(_RESOURCE));
 DEFINE_PRIM(_VOID, ps_set_shader, _POINTER);
@@ -441,7 +477,7 @@ DEFINE_PRIM(_POINTER, create_input_layout, _ARR _BYTES _I32);
 DEFINE_PRIM(_RESOURCE, create_texture_2d, _DYN _BYTES);
 DEFINE_PRIM(_POINTER, create_depth_stencil_view, _RESOURCE _I32);
 DEFINE_PRIM(_POINTER, create_depth_stencil_state, _DYN);
-DEFINE_PRIM(_VOID, om_set_depth_stencil_state, _POINTER);
+DEFINE_PRIM(_VOID, om_set_depth_stencil_state, _POINTER _I32);
 DEFINE_PRIM(_VOID, clear_depth_stencil_view, _POINTER _NULL(_F64) _NULL(_I32));
 DEFINE_PRIM(_POINTER, create_blend_state, _BOOL _BOOL _ARR _I32);
 DEFINE_PRIM(_VOID, om_set_blend_state, _POINTER _BYTES _I32);
