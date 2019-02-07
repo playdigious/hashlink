@@ -56,14 +56,33 @@ ui_window* currentWindow;
 
 void ui_ui_sentinel_tick (ui_sentinel* sent)
 {
+	/* Removed by Florian BOEUF on 2019 Feb 7th
+	As part of integrating v1.1 of Deadcells
+	While merging with a newer version of hashlink, some thread related
+	functions have been removed or replaced. As such, the sentinel code
+	does not compile anymore. 
+	Taking ui_ui_sentinel_tick code from ui_stub.c, doing nothing.
+	Code kept for archives
+
 	sent->ticks++;
+	*/
 }
 
 void ui_ui_sentinel_pause (ui_sentinel* sent, bool b)
 {
+	/* Removed by Florian BOEUF on 2019 Feb 7th
+	As part of integrating v1.1 of Deadcells
+	While merging with a newer version of hashlink, some thread related
+	functions have been removed or replaced. As such, the sentinel code
+	does not compile anymore. 
+	Taking ui_ui_sentinel_pause code from ui_stub.c, doing nothing.
+	Code kept for archives
+
 	sent->pause = b;
+	*/
 }
 
+/* see ui_ui_start_sentinel
 static void sentinel_loop( ui_sentinel *s )
 {
 	int time_ms = (int)((s->timeout * 1000.) / 16.);
@@ -94,10 +113,18 @@ static void sentinel_loop( ui_sentinel *s )
 			}
 		}
 	}
-}
+}*/
 
 ui_sentinel* ui_ui_start_sentinel (double timeout, vclosure* vc)
 {
+	/* Removed by Florian BOEUF on 2019 Feb 7th
+	As part of integrating v1.1 of Deadcells
+	While merging with a newer version of hashlink, some thread related
+	functions have been removed or replaced. As such, the sentinel code
+	does not compile anymore. 
+	Taking ui_ui_start_sentinel code from ui_stub.c, and returning null only.
+	Code kept for archives
+
 	ui_sentinel *sent = &ui_sentinel_d;
 	if( vc->hasValue ) hl_error("Cannot set sentinel on closure callback");
 #ifdef HL_DEBUG
@@ -109,12 +136,23 @@ ui_sentinel* ui_ui_start_sentinel (double timeout, vclosure* vc)
 	sent->original = hl_thread_current();
 	sent->callback = vc->fun;
 	sent->thread = hl_thread_start(sentinel_loop,sent,false);
-	return sent;
+	return sent;*/
+	return NULL;
 }
 
 bool ui_ui_sentinel_is_paused(ui_sentinel* sent)
 {
+	/* Removed by Florian BOEUF on 2019 Feb 7th
+	As part of integrating v1.1 of Deadcells
+	While merging with a newer version of hashlink, some thread related
+	functions have been removed or replaced. As such, the sentinel code
+	does not compile anymore. 
+	Taking ui_ui_sentinel_is_paused code from ui_stub.c, doing nothing.
+	Code kept for archives
+
 	return sent->pause;
+	*/
+	return false;
 }
 
 void ui_ui_win_destroy (ui_window* win)
