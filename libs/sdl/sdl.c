@@ -137,7 +137,7 @@ HL_PRIM bool HL_NAME(init_once)() {
 	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
 #ifndef HL_ANDROID
-		hl_error_msg(USTR("SDL_Init failed: %s"), hl_to_utf16(SDL_GetError()));
+		hl_error("SDL_Init failed: %s", hl_to_utf16(SDL_GetError()));
 #endif
 		return false;
 	}
