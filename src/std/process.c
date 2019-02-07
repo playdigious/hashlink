@@ -1,6 +1,3 @@
-#   elif defined(HL_IOS) || defined(HL_TVOS)
-	hl_error("hl_process_kill() not available on this platform");
-#	else
 /*
  * Copyright (C)2005-2016 Haxe Foundation
  *
