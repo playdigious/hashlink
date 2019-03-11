@@ -46,7 +46,6 @@ typedef enum {
 	TouchDown = 200,
 	TouchUp,
 	TouchMove,
-	CloudSaveLoaded = 300,
     AppTerminating = 400,
     LowMemory,
     WillEnterBackground,
@@ -87,8 +86,6 @@ typedef struct {
 	int value;
 	int fingerIdHigh;
 	int fingerIdLow;
-	const char * saveName;
-	const char * saveData;
 } event_data;
 
 HL_PRIM bool HL_NAME(init_once)() {
