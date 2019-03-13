@@ -28,7 +28,7 @@ class Sdl {
 	}
 	
 	@:hlNative("sdl","get_platform")
-	static function get_platform() return hxd.System.Platform.PC;
+	static function get_platform() : hxd.System.Platform { return hxd.System.Platform.PC; }
 
 	public static function lockFPS(wantedFPS:Int = 30)
 	{
