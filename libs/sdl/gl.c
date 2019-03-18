@@ -319,9 +319,11 @@ HL_PRIM void HL_NAME(gl_tex_image2d)( int target, int level, int internalFormat,
 }
 
 HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int size, vbyte *data ) {
+#if defined(HL_IOS) || defined (HL_TVOS) || defined (HL_MAC)
 	//printf("gl_compressed_tex_image2d 0x%x,%d,0x%x,%d,%d,%d,0x%x ptr=0x%x\n",target,level,internalFormat,width,height,border,size, data);
 	glCompressedTexImage2D(target, level, internalFormat, width, height, border, size, data);
 	sdl_gl_get_error();
+#endif
 }
 
 HL_PRIM void HL_NAME(gl_tex_image3d)( int target, int level, int internalFormat, int width, int height, int depth, int border, int format, int type, vbyte *image ) {
