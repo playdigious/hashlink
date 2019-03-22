@@ -21,7 +21,7 @@
  */
 #include <hlc.h>
 
-#if defined(HL_MOBILE) && defined(sdl__Sdl__val)
+#if defined(HL_MOBILE) /*&& defined(sdl__Sdl__val)*/
 #   include <SDL_main.h>
 #endif
 
