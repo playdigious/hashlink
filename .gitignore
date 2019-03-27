@@ -53,3 +53,4 @@ node_modules
 /*.zip
 /*.tgz
 args.txt
+.vscode
