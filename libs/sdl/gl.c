@@ -397,6 +397,10 @@ HL_PRIM void HL_NAME(gl_draw_buffers)( int count, unsigned int *buffers) {
 	glDrawBuffers(count, buffers);
 }
 
+HL_PRIM int HL_NAME(gl_check_framebuffer_status)( int buffer ) {
+	return glCheckFramebufferStatus(buffer);
+}
+
 // renderbuffer
 
 HL_PRIM vdynamic *HL_NAME(gl_create_renderbuffer)() {
@@ -685,6 +689,7 @@ DEFINE_PRIM(_VOID,gl_delete_framebuffer,_NULL(_I32));
 DEFINE_PRIM(_VOID,gl_read_pixels,_I32 _I32 _I32 _I32 _I32 _I32 _BYTES);
 DEFINE_PRIM(_VOID,gl_read_buffer,_I32);
 DEFINE_PRIM(_VOID,gl_draw_buffers,_I32 _BYTES);
+DEFINE_PRIM(_I32,gl_check_framebuffer_status,_I32);
 DEFINE_PRIM(_NULL(_I32),gl_create_renderbuffer,_NO_ARG);
 DEFINE_PRIM(_VOID,gl_bind_renderbuffer,_I32 _NULL(_I32));
 DEFINE_PRIM(_VOID,gl_renderbuffer_storage,_I32 _I32 _I32 _I32);
