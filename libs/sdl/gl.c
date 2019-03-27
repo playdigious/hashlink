@@ -61,9 +61,26 @@ static int GLLoadAPI() {
 
 #define ZIDX(val) ((val)?(val)->v.i:0)
 
+#ifdef HL_DEBUG
+#	define DBG_GL //up to you
+#endif
+
+#ifdef DBG_GL
+HL_PRIM int HL_NAME(gl_get_error)(); //pre-decl
+static inline void chkErr() { sdl_gl_get_error(); }
+#else
+static inline void chkErr() {}
+#endif
+
 // globals
 HL_PRIM bool HL_NAME(gl_init)() {
+#ifdef DBG_GL
+	bool f = GLLoadAPI() == 0;
+	chkErr();
+	return f;
+#else
 	return GLLoadAPI() == 0;
+#endif
 }
 
 HL_PRIM bool HL_NAME(gl_is_context_lost)() {
@@ -74,18 +91,29 @@ HL_PRIM bool HL_NAME(gl_is_context_lost)() {
 
 HL_PRIM void HL_NAME(gl_clear)( int bits ) {
 	glClear(bits);
+	chkErr();
 }
 
 HL_PRIM int HL_NAME(gl_get_error)() {
+#ifdef DBG_GL
+	glFlush();
+	uint error = glGetError();
+	if(error != GL_NO_ERROR)
+		printf("gl get error : %d \n", error);
+	return error;
+#else 
 	return glGetError();
+#endif
 }
 
 HL_PRIM void HL_NAME(gl_scissor)( int x, int y, int width, int height ) {
 	glScissor(x, y, width, height);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_clear_color)( double r, double g, double b, double a ) {
 	glClearColor((float)r, (float)g, (float)b, (float)a);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_clear_depth)( double value ) {
@@ -98,14 +126,17 @@ HL_PRIM void HL_NAME(gl_clear_stencil)( int value ) {
 
 HL_PRIM void HL_NAME(gl_viewport)( int x, int y, int width, int height ) {
 	glViewport(x, y, width, height);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_flush)() {
 	glFlush();
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_finish)() {
 	glFinish();
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_pixel_storei)( int key, int value ) {
@@ -113,21 +144,30 @@ HL_PRIM void HL_NAME(gl_pixel_storei)( int key, int value ) {
 }
 
 HL_PRIM vbyte *HL_NAME(gl_get_string)(int name) {
+#ifdef DBG_GL
+	vbyte* v = (vbyte*)glGetString(name);
+	chkErr();
+	return v;
+#else
 	return (vbyte*)glGetString(name);
+#endif
 }
 
 // state changes
 
 HL_PRIM void HL_NAME(gl_polygon_mode)(int face, int mode) {
 	glPolygonMode(face, mode);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_enable)( int feature ) {
 	glEnable(feature);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_disable)( int feature ) {
 	glDisable(feature);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_cull_face)( int face ) {
@@ -136,34 +176,42 @@ HL_PRIM void HL_NAME(gl_cull_face)( int face ) {
 
 HL_PRIM void HL_NAME(gl_blend_func)( int src, int dst ) {
 	glBlendFunc(src, dst);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_blend_func_separate)( int src, int dst, int alphaSrc, int alphaDst ) {
 	glBlendFuncSeparate(src, dst, alphaSrc, alphaDst);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_blend_equation)( int op ) {
 	glBlendEquation(op);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_blend_equation_separate)( int op, int alphaOp ) {
 	glBlendEquationSeparate(op, alphaOp);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_depth_mask)( bool mask ) {
 	glDepthMask(mask);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_depth_func)( int f ) {
 	glDepthFunc(f);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_color_mask)( bool r, bool g, bool b, bool a ) {
 	glColorMask(r, g, b, a);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_stencil_mask_separate)(int face, int mask) {
 	glStencilMaskSeparate(face, mask);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_stencil_func_separate)(int face, int func, int ref, int mask ) {
@@ -172,6 +220,7 @@ HL_PRIM void HL_NAME(gl_stencil_func_separate)(int face, int func, int ref, int 
 
 HL_PRIM void HL_NAME(gl_stencil_op_separate)(int face, int sfail, int dpfail, int dppass) {
 	glStencilOpSeparate(face, sfail, dpfail, dppass);
+	chkErr();
 }
 
 // program
@@ -185,25 +234,30 @@ static vdynamic *alloc_i32(int v) {
 
 HL_PRIM vdynamic *HL_NAME(gl_create_program)() {
 	int v = glCreateProgram();
+	chkErr();
 	if( v == 0 ) return NULL;
 	return alloc_i32(v);
 }
 
 HL_PRIM void HL_NAME(gl_delete_program)( vdynamic *s ) {
 	glDeleteProgram(s->v.i);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_bind_frag_data_location)( vdynamic *p, int colNum, vstring *name ) {
 	char *cname = hl_to_utf8(name->bytes);
 	glBindFragDataLocation(p->v.i, colNum, cname);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_attach_shader)( vdynamic *p, vdynamic *s ) {
 	glAttachShader(p->v.i, s->v.i);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_link_program)( vdynamic *p ) {
 	glLinkProgram(p->v.i);
+	chkErr();
 }
 
 HL_PRIM vdynamic *HL_NAME(gl_get_program_parameter)( vdynamic *p, int param ) {
@@ -211,6 +265,7 @@ HL_PRIM vdynamic *HL_NAME(gl_get_program_parameter)( vdynamic *p, int param ) {
 	case 0x8B82 /*LINK_STATUS*/ : {
 		int ret = 0;
 		glGetProgramiv(p->v.i, param, &ret);
+		chkErr();
 		return alloc_i32(ret);
 	}
 	default:
@@ -223,29 +278,39 @@ HL_PRIM vbyte *HL_NAME(gl_get_program_info_bytes)( vdynamic *p ) {
 	char log[4096];
 	*log = 0;
 	glGetProgramInfoLog(p->v.i, 4096, NULL, log);
+	chkErr();
 	return hl_copy_bytes((vbyte*)log,(int)strlen(log) + 1);
 }
 
 HL_PRIM vdynamic *HL_NAME(gl_get_uniform_location)( vdynamic *p, vstring *name ) {
 	char *cname = hl_to_utf8(name->bytes);
 	int u = glGetUniformLocation(p->v.i, cname);
+	chkErr();
 	if( u < 0 ) return NULL;
 	return alloc_i32(u);
 }
 
 HL_PRIM int HL_NAME(gl_get_attrib_location)( vdynamic *p, vstring *name ) {
 	char *cname = hl_to_utf8(name->bytes);
+#ifdef DBG_GL
+	int loc = glGetAttribLocation(p->v.i, cname);
+	chkErr();
+	return loc;
+#else 
 	return glGetAttribLocation(p->v.i, cname);
+#endif
 }
 
 HL_PRIM void HL_NAME(gl_use_program)( vdynamic *p ) {
 	glUseProgram(ZIDX(p));
+	chkErr();
 }
 
 // shader
 
 HL_PRIM vdynamic *HL_NAME(gl_create_shader)( int type ) {
 	int s = glCreateShader(type);
+	chkErr();
 	if (s == 0) return NULL;
 	return alloc_i32(s);
 }
@@ -253,16 +318,19 @@ HL_PRIM vdynamic *HL_NAME(gl_create_shader)( int type ) {
 HL_PRIM void HL_NAME(gl_shader_source)( vdynamic *s, vstring *src ) {
 	const GLchar *c = (GLchar*)hl_to_utf8(src->bytes);
 	glShaderSource(s->v.i, 1, &c, NULL);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_compile_shader)( vdynamic *s ) {
 	glCompileShader(s->v.i);
+	chkErr();
 }
 
 HL_PRIM vbyte *HL_NAME(gl_get_shader_info_bytes)( vdynamic *s ) {
 	char log[4096];
 	*log = 0;
 	glGetShaderInfoLog(s->v.i, 4096, NULL, log);
+	chkErr();
 	return hl_copy_bytes((vbyte*)log, (int)strlen(log)+1);
 }
 
@@ -274,6 +342,7 @@ HL_PRIM vdynamic *HL_NAME(gl_get_shader_parameter)( vdynamic *s, int param ) {
 	{
 		int ret = 0;
 		glGetShaderiv(s->v.i, param, &ret);
+		chkErr();
 		return alloc_i32(ret);
 	}
 	default:
@@ -284,6 +353,7 @@ HL_PRIM vdynamic *HL_NAME(gl_get_shader_parameter)( vdynamic *s, int param ) {
 
 HL_PRIM void HL_NAME(gl_delete_shader)( vdynamic *s ) {
 	glDeleteShader(s->v.i);
+	chkErr();
 }
 
 // texture
@@ -291,67 +361,80 @@ HL_PRIM void HL_NAME(gl_delete_shader)( vdynamic *s ) {
 HL_PRIM vdynamic *HL_NAME(gl_create_texture)() {
 	unsigned int t = 0;
 	glGenTextures(1, &t);
+	chkErr();
 	return alloc_i32(t);
 }
 
 HL_PRIM void HL_NAME(gl_active_texture)( int t ) {
 	glActiveTexture(t);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_bind_texture)( int t, vdynamic *texture ) {
 	glBindTexture(t, ZIDX(texture));
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_bind_image_texture)( int unit, int texture, int level, bool layered, int layer, int access, int format ) {
 	glBindImageTexture(unit, texture, level, layered, layer, access, format);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_tex_parameterf)( int t, int key, float value ) {
 	glTexParameterf(t, key, value);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_tex_parameteri)( int t, int key, int value ) {
 	glTexParameteri(t, key, value);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int format, int type, vbyte *image ) {
 	glTexImage2D(target, level, internalFormat, width, height, border, format, type, image);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int size, vbyte *data ) {
 #if defined(HL_IOS) || defined (HL_TVOS) || defined (HL_MAC)
 	//printf("gl_compressed_tex_image2d 0x%x,%d,0x%x,%d,%d,%d,0x%x ptr=0x%x\n",target,level,internalFormat,width,height,border,size, data);
 	glCompressedTexImage2D(target, level, internalFormat, width, height, border, size, data);
-	sdl_gl_get_error();
+	chkErr();
 #endif
 }
 
 HL_PRIM void HL_NAME(gl_tex_image3d)( int target, int level, int internalFormat, int width, int height, int depth, int border, int format, int type, vbyte *image ) {
 	glTexImage3D(target, level, internalFormat, width, height, depth, border, format, type, image);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_tex_image2d_multisample)( int target, int samples, int internalFormat, int width, int height, bool fixedsamplelocations) {
 	glTexImage2DMultisample(target, samples, internalFormat, width, height, fixedsamplelocations);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_generate_mipmap)( int t ) {
 	glGenerateMipmap(t);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_delete_texture)( vdynamic *t ) {
 	unsigned int tt = t->v.i;
 	glDeleteTextures(1, &tt);
+	chkErr();
 }
 
 // framebuffer
 
 HL_PRIM void HL_NAME(gl_blit_framebuffer)(int src_x0, int src_y0, int src_x1, int src_y1, int dst_x0, int dst_y0, int dst_x1, int dst_y1, int mask, int filter) {
 	glBlitFramebuffer(src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0, dst_x1, dst_y1, mask, filter);
+	chkErr();
 }
 
 HL_PRIM vdynamic *HL_NAME(gl_create_framebuffer)() {
 	unsigned int f = 0;
 	glGenFramebuffers(1, &f);
+	chkErr();
 	return alloc_i32(f);
 }
 
@@ -366,35 +449,43 @@ HL_PRIM void HL_NAME(gl_bind_framebuffer)( int target, vdynamic *f ) {
 	}
 #endif
 	glBindFramebuffer(target, id);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_framebuffer_texture)( int target, int attach, vdynamic *t, int level ) {
 	glFramebufferTexture(target, attach, ZIDX(t), level);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_framebuffer_texture2d)( int target, int attach, int texTarget, vdynamic *t, int level ) {
 	glFramebufferTexture2D(target, attach, texTarget, ZIDX(t), level);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_framebuffer_texture_layer)( int target, int attach, vdynamic *t, int level, int layer ) {
 	glFramebufferTextureLayer(target, attach, ZIDX(t), level, layer);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_delete_framebuffer)( vdynamic *f ) {
 	unsigned int ff = (unsigned)f->v.i;
 	glDeleteFramebuffers(1, &ff);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_read_pixels)( int x, int y, int width, int height, int format, int type, vbyte *data ) {
 	glReadPixels(x, y, width, height, format, type, data);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_read_buffer)( int mode ) {
 	glReadBuffer(mode);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_draw_buffers)( int count, unsigned int *buffers) {
 	glDrawBuffers(count, buffers);
+	chkErr();
 }
 
 HL_PRIM int HL_NAME(gl_check_framebuffer_status)( int buffer ) {
@@ -406,6 +497,7 @@ HL_PRIM int HL_NAME(gl_check_framebuffer_status)( int buffer ) {
 HL_PRIM vdynamic *HL_NAME(gl_create_renderbuffer)() {
 	unsigned int buf = 0;
 	glGenRenderbuffers(1, &buf);
+	chkErr();
 	return alloc_i32(buf);
 }
 
@@ -420,24 +512,29 @@ HL_PRIM void HL_NAME(gl_bind_renderbuffer)( int target, vdynamic *r ) {
 	}
 #endif
 	glBindRenderbuffer(GL_RENDERBUFFER, id);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_renderbuffer_storage)( int target, int format, int width, int height ) {
 	glRenderbufferStorage(target, format, width, height);
+	chkErr();
 }
 
 
 HL_PRIM void HL_NAME(gl_renderbuffer_storage_multisample)( int target, int samples, int format, int width, int height ) {
 	glRenderbufferStorageMultisample(target, samples, format, width, height);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_framebuffer_renderbuffer)( int frameTarget, int attach, int renderTarget, vdynamic *b ) {
 	glFramebufferRenderbuffer(frameTarget, attach, renderTarget, ZIDX(b));
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_delete_renderbuffer)( vdynamic *b ) {
 	unsigned int bb = (unsigned)b->v.i;
 	glDeleteRenderbuffers(1, &bb);
+	chkErr();
 }
 
 // buffer
@@ -445,76 +542,93 @@ HL_PRIM void HL_NAME(gl_delete_renderbuffer)( vdynamic *b ) {
 HL_PRIM vdynamic *HL_NAME(gl_create_buffer)() {
 	unsigned int b = 0;
 	glGenBuffers(1, &b);
+	chkErr();
 	return alloc_i32(b);
 }
 
 HL_PRIM void HL_NAME(gl_bind_buffer)( int target, vdynamic *b ) {
 	glBindBuffer(target, ZIDX(b));
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_bind_buffer_base)( int target, int index, vdynamic *b ) {
 	glBindBufferBase(target, index, ZIDX(b));
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_buffer_data_size)( int target, int size, int param ) {
 	glBufferData(target, size, NULL, param);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_buffer_data)( int target, int size, vbyte *data, int param ) {
 	glBufferData(target, size, data, param);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_buffer_sub_data)( int target, int offset, vbyte *data, int srcOffset, int srcLength ) {
 	glBufferSubData(target, offset, srcLength, data + srcOffset);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_enable_vertex_attrib_array)( int attrib ) {
 	glEnableVertexAttribArray(attrib);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_disable_vertex_attrib_array)( int attrib ) {
 	glDisableVertexAttribArray(attrib);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_vertex_attrib_pointer)( int index, int size, int type, bool normalized, int stride, int position ) {
 	glVertexAttribPointer(index, size, type, normalized, stride, (void*)(int_val)position);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_vertex_attrib_ipointer)( int index, int size, int type, int stride, int position ) {
 	glVertexAttribIPointer(index, size, type, stride, (void*)(int_val)position);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_vertex_attrib_divisor)( int index, int divisor ) {
 	glVertexAttribDivisor(index, divisor);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_delete_buffer)( vdynamic *b ) {
 	unsigned int bb = (unsigned)b->v.i;
 	glDeleteBuffers(1, &bb);
+	chkErr();
 }
 
 // uniforms
 
 HL_PRIM void HL_NAME(gl_uniform1i)( vdynamic *u, int i ) {
 	glUniform1i(u->v.i, i);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_uniform4fv)( vdynamic *u, vbyte *buffer, int bufPos, int count ) {
 	glUniform4fv(u->v.i, count, (float*)buffer + bufPos);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_uniform_matrix4fv)( vdynamic *u, bool transpose, vbyte *buffer, int bufPos, int count ) {
 	glUniformMatrix4fv(u->v.i, count, transpose ? GL_TRUE : GL_FALSE, (float*)buffer + bufPos);
+	chkErr();
 }
 
 // compute
 HL_PRIM void HL_NAME(gl_dispatch_compute)( int num_groups_x, int num_groups_y, int num_groups_z ) {
 	glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_memory_barrier)( int barriers ) {
 #	if !defined(HL_IOS) && !defined(HL_TVOS) && !defined(HL_MAC)
 	glMemoryBarrier(barriers);
+	chkErr();
 #	endif
 }
 
@@ -522,23 +636,28 @@ HL_PRIM void HL_NAME(gl_memory_barrier)( int barriers ) {
 
 HL_PRIM void HL_NAME(gl_draw_elements)( int mode, int count, int type, int start ) {
 	glDrawElements(mode, count, type, (void*)(int_val)start);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_draw_arrays)( int mode, int first, int count, int start ) {
 	glDrawArrays(mode,first,count);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_draw_elements_instanced)( int mode, int count, int type, int start, int primcount ) {
 	glDrawElementsInstanced(mode,count,type,(void*)(int_val)start,primcount);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_draw_arrays_instanced)( int mode, int first, int count, int primcount ) {
 	glDrawArraysInstanced(mode,first,count,primcount);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_multi_draw_elements_indirect)( int mode, int type, vbyte *data, int count, int stride ) {
 #	ifdef GL_VERSION_4_3
 	glMultiDrawElementsIndirect(mode, type, data, count, stride);
+	chkErr();
 #	endif
 }
 
@@ -561,24 +680,29 @@ HL_PRIM int HL_NAME(gl_get_config_parameter)( int feature ) {
 HL_PRIM vdynamic *HL_NAME(gl_create_query)() {
 	unsigned int t = 0;
 	glGenQueries(1, &t);
+	chkErr();
 	return alloc_i32(t);
 }
 
 HL_PRIM void HL_NAME(gl_delete_query)( vdynamic *q ) {
 	glDeleteQueries(1, (const GLuint *) &q->v.i);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_begin_query)( int target, vdynamic *q ) {
 	glBeginQuery(target,q->v.i);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_end_query)( int target ) {
 	glEndQuery(target);
+	chkErr();
 }
 
 HL_PRIM bool HL_NAME(gl_query_result_available)( vdynamic *q ) {
 	int v = 0;
 	glGetQueryObjectiv(q->v.i, GL_QUERY_RESULT_AVAILABLE, &v);
+	chkErr();
 	return v == GL_TRUE;
 }
 
@@ -586,6 +710,7 @@ HL_PRIM double HL_NAME(gl_query_result)( vdynamic *q ) {
 	GLuint64 v = -1;
 #	if !defined(HL_MESA) && !defined(HL_MOBILE)
 	glGetQueryObjectui64v(q->v.i, GL_QUERY_RESULT, &v);
+	chkErr();
 #	endif
 	return (double)v;
 }
@@ -593,6 +718,7 @@ HL_PRIM double HL_NAME(gl_query_result)( vdynamic *q ) {
 HL_PRIM void HL_NAME(gl_query_counter)( vdynamic *q, int target ) {
 #	if !defined(HL_MESA) && !defined(HL_MOBILE)
 	glQueryCounter(q->v.i, target);
+	chkErr();
 #	endif
 }
 
@@ -601,28 +727,38 @@ HL_PRIM void HL_NAME(gl_query_counter)( vdynamic *q, int target ) {
 HL_PRIM vdynamic *HL_NAME(gl_create_vertex_array)() {
 	unsigned int f = 0;
 	glGenVertexArrays(1, &f);
+	chkErr();
 	return alloc_i32(f);
 }
 
 HL_PRIM void HL_NAME(gl_bind_vertex_array)( vdynamic *b ) {
 	unsigned int bb = (unsigned)b->v.i;
 	glBindVertexArray(bb);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_delete_vertex_array)( vdynamic *b ) {
 	unsigned int bb = (unsigned)b->v.i;
 	glDeleteVertexArrays(1, &bb);
+	chkErr();
 }
 
 // uniform buffer
 
 HL_PRIM int HL_NAME(gl_get_uniform_block_index)( vdynamic *p, vstring *name ) {
 	char *cname = hl_to_utf8(name->bytes);
+#ifdef DBG_GL
+	int t = (int)glGetUniformBlockIndex(p->v.i, cname);
+	chkErr();
+	return t;
+#else
 	return (int)glGetUniformBlockIndex(p->v.i, cname);
+#endif
 }
 
 HL_PRIM void HL_NAME(gl_uniform_block_binding)( vdynamic *p, int index, int binding ) {
 	glUniformBlockBinding(p->v.i, index, binding);
+	chkErr();
 }
 
 DEFINE_PRIM(_BOOL,gl_init,_NO_ARG);
