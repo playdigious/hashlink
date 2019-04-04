@@ -489,7 +489,9 @@ HL_PRIM void HL_NAME(gl_draw_buffers)( int count, unsigned int *buffers) {
 }
 
 HL_PRIM int HL_NAME(gl_check_framebuffer_status)( int buffer ) {
+#if	defined(HL_MOBILE) || defined(HL_MAC)
 	return glCheckFramebufferStatus(buffer);
+#endif
 }
 
 // renderbuffer
