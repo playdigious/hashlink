@@ -30,6 +30,8 @@
 #include <posix/posix.h>
 #endif
 
+#include <assert.h>
+
 HL_PRIM void *hl_fatal_error( const char *msg, const char *file, int line ) {
 	hl_blocking(true);
 #	ifdef HL_WIN_DESKTOP
@@ -88,6 +90,7 @@ static bool break_on_trap( hl_thread_info *t, hl_trap_ctx *trap, vdynamic *v ) {
 }
 
 HL_PRIM void hl_throw( vdynamic *v ) {
+	assert(false);
 	hl_thread_info *t = hl_get_thread();
 	hl_trap_ctx *trap = t->trap_current;
 	bool was_rethrow = false;
