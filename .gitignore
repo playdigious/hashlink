@@ -20,7 +20,6 @@ x64
 *.a
 *.opendb
 *.VC.db
-*.VC.db-*
 /hl
 /include/sdl
 /include/openal
@@ -53,4 +52,4 @@ node_modules
 /*.zip
 /*.tgz
 args.txt
-.vscode
+/other/benchs/hlc

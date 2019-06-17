@@ -77,7 +77,9 @@ static hl_mutex *hl_cache_lock = NULL;
 static hl_field_lookup *hl_cache = NULL;
 
 void hl_cache_init() {
+#	ifdef HL_THREADS
 	hl_add_root(&hl_cache_lock);
+#	endif
 	hl_cache_lock = hl_mutex_alloc(false);
 }
 
@@ -130,9 +132,9 @@ HL_PRIM int hl_hash_gen( const uchar *name, bool cache_name ) {
 	return h;
 }
 
-HL_PRIM const uchar *hl_field_name( int hash ) {
+HL_PRIM vbyte *hl_field_name( int hash ) {
 	hl_field_lookup *l = hl_lookup_find(hl_cache, hl_cache_count, hash);
-	return l ? (uchar*)l->t : USTR("???");
+	return l ? (vbyte*)l->t : (vbyte*)USTR("???");
 }
 
 HL_PRIM void hl_cache_free() {
@@ -227,7 +229,7 @@ HL_PRIM hl_runtime_obj *hl_get_obj_rt( hl_type *ot ) {
 		start = p->nfields;
 		memcpy(t->fields_indexes, p->fields_indexes, sizeof(int)*p->nfields);
 	}
-	size = p ? p->size : HL_WSIZE; // hl_type*
+	size = p ? p->size : (ot->kind == HSTRUCT ? 0 : HL_WSIZE); // hl_type*
 	nlookup = 0;
 	for(i=0;i<o->nfields;i++) {
 		hl_type *ft = o->fields[i].t;
@@ -385,7 +387,23 @@ HL_API hl_runtime_obj *hl_get_obj_proto( hl_type *ot ) {
 	return t;
 }
 
-void hl_init_virtual( hl_type *vt, hl_module_context *ctx ) {
+HL_API void hl_flush_proto( hl_type *ot ) {
+	int i;
+	hl_type_obj *o = ot->obj;
+	hl_runtime_obj *rt = ot->obj->rt;
+	hl_module_context *m = o->m;
+	if( !rt ) return;
+	for(i=0;i<o->nbindings;i++) {
+		hl_runtime_binding *b = rt->bindings + i;
+		int mid = o->bindings[(i<<1)|1];
+		if( b->closure )
+			b->ptr = m->functions_ptrs[mid];
+		else
+			((vclosure*)b->ptr)->fun = m->functions_ptrs[mid];
+	}
+}
+
+HL_API void hl_init_virtual( hl_type *vt, hl_module_context *ctx ) {
 	int i;
 	int vsize = sizeof(vvirtual) + sizeof(void*) * vt->virt->nfields;
 	int size = vsize;
@@ -706,6 +724,14 @@ static void *hl_obj_lookup( vdynamic *d, int hfield, hl_type **t ) {
 			return (char*)d + f->field_index;
 		}
 		break;
+	case HSTRUCT:
+		{
+			hl_field_lookup *f = obj_resolve_field(d->t->obj,hfield);
+			if( f == NULL || f->field_index < 0 ) return NULL;
+			*t = f->t;
+			return (char*)d->v.ptr + f->field_index;
+		}
+		break;
 	case HVIRTUAL:
 		{
 			vdynamic *v = ((vvirtual*)d)->value;
@@ -728,6 +754,7 @@ static void *hl_obj_lookup( vdynamic *d, int hfield, hl_type **t ) {
 static vdynamic *hl_obj_lookup_extra( vdynamic *d, int hfield ) {
 	switch( d->t->kind ) {
 	case HOBJ:
+	case HSTRUCT:
 		{
 			hl_field_lookup *f = obj_resolve_field(d->t->obj,hfield);
 			if( f && f->field_index < 0 )
@@ -754,6 +781,7 @@ static vdynamic *hl_obj_lookup_extra( vdynamic *d, int hfield ) {
 
 HL_PRIM int hl_dyn_geti( vdynamic *d, int hfield, hl_type *t ) {
 	hl_type *ft;
+	hl_track_call(HL_TRACK_DYNFIELD, on_dynfield(d,hfield));
 	void *addr = hl_obj_lookup(d,hfield,&ft);
 	if( !addr ) {
 		d = hl_obj_lookup_extra(d,hfield);
@@ -779,6 +807,7 @@ HL_PRIM int hl_dyn_geti( vdynamic *d, int hfield, hl_type *t ) {
 
 HL_PRIM float hl_dyn_getf( vdynamic *d, int hfield ) {
 	hl_type *ft;
+	hl_track_call(HL_TRACK_DYNFIELD, on_dynfield(d,hfield));
 	void *addr = hl_obj_lookup(d,hfield,&ft);
 	if( !addr ) {
 		d = hl_obj_lookup_extra(d,hfield);
@@ -789,6 +818,7 @@ HL_PRIM float hl_dyn_getf( vdynamic *d, int hfield ) {
 
 HL_PRIM double hl_dyn_getd( vdynamic *d, int hfield ) {
 	hl_type *ft;
+	hl_track_call(HL_TRACK_DYNFIELD, on_dynfield(d,hfield));
 	void *addr = hl_obj_lookup(d,hfield,&ft);
 	if( !addr ) {
 		d = hl_obj_lookup_extra(d,hfield);
@@ -799,6 +829,7 @@ HL_PRIM double hl_dyn_getd( vdynamic *d, int hfield ) {
 
 HL_PRIM void *hl_dyn_getp( vdynamic *d, int hfield, hl_type *t ) {
 	hl_type *ft;
+	hl_track_call(HL_TRACK_DYNFIELD, on_dynfield(d,hfield));
 	void *addr = hl_obj_lookup(d,hfield,&ft);
 	if( !addr ) {
 		d = hl_obj_lookup_extra(d,hfield);
@@ -838,6 +869,14 @@ static void *hl_obj_lookup_set( vdynamic *d, int hfield, hl_type *t, hl_type **f
 			return (char*)d + f->field_index;
 		}
 		break;
+	case HSTRUCT:
+		{
+			hl_field_lookup *f = obj_resolve_field(d->t->obj,hfield);
+			if( f == NULL || f->field_index < 0 ) hl_error("%s does not have field %s",d->t->obj->name,hl_field_name(hfield));
+			*ft = f->t;
+			return (char*)d->v.ptr + f->field_index;
+		}
+		break;
 	case HVIRTUAL:
 		{
 			vvirtual *v = (vvirtual*)d;
@@ -858,6 +897,7 @@ static void *hl_obj_lookup_set( vdynamic *d, int hfield, hl_type *t, hl_type **f
 
 HL_PRIM void hl_dyn_seti( vdynamic *d, int hfield, hl_type *t, int value ) {
 	hl_type *ft = NULL;
+	hl_track_call(HL_TRACK_DYNFIELD, on_dynfield(d,hfield));
 	void *addr = hl_obj_lookup_set(d,hfield,t,&ft);
 	switch( ft->kind ) {
 	case HUI8:
@@ -891,6 +931,7 @@ HL_PRIM void hl_dyn_seti( vdynamic *d, int hfield, hl_type *t, int value ) {
 
 HL_PRIM void hl_dyn_setf( vdynamic *d, int hfield, float value ) {
 	hl_type *t = NULL;
+	hl_track_call(HL_TRACK_DYNFIELD, on_dynfield(d,hfield));
 	void *addr = hl_obj_lookup_set(d,hfield,&hlt_f32,&t);
 	if( t->kind == HF32 )
 		*(float*)addr = value;
@@ -904,6 +945,7 @@ HL_PRIM void hl_dyn_setf( vdynamic *d, int hfield, float value ) {
 
 HL_PRIM void hl_dyn_setd( vdynamic *d, int hfield, double value ) {
 	hl_type *t = NULL;
+	hl_track_call(HL_TRACK_DYNFIELD, on_dynfield(d,hfield));
 	void *addr = hl_obj_lookup_set(d,hfield,&hlt_f64,&t);
 	if( t->kind == HF64 )
 		*(double*)addr = value;
@@ -917,6 +959,7 @@ HL_PRIM void hl_dyn_setd( vdynamic *d, int hfield, double value ) {
 
 HL_PRIM void hl_dyn_setp( vdynamic *d, int hfield, hl_type *t, void *value ) {
 	hl_type *ft = NULL;
+	hl_track_call(HL_TRACK_DYNFIELD, on_dynfield(d,hfield));
 	void *addr = hl_obj_lookup_set(d,hfield,t,&ft);
 	if( hl_same_type(t,ft) || (hl_is_ptr(ft) && value == NULL) )
 		*(void**)addr = value;
@@ -939,6 +982,7 @@ HL_PRIM vdynamic *hl_obj_get_field( vdynamic *obj, int hfield ) {
 	case HOBJ:
 	case HVIRTUAL:
 	case HDYNOBJ:
+	case HSTRUCT:
 		return (vdynamic*)hl_dyn_getp(obj,hfield,&hlt_dyn);
 	default:
 		return NULL;
@@ -979,6 +1023,7 @@ HL_PRIM bool hl_obj_has_field( vdynamic *obj, int hfield ) {
 	if( obj == NULL ) return false;
 	switch( obj->t->kind ) {
 	case HOBJ:
+	case HSTRUCT:
 		{
 			hl_field_lookup *l = obj_resolve_field(obj->t->obj, hfield);
 			return l && l->field_index >= 0;
@@ -1042,6 +1087,7 @@ HL_PRIM varray *hl_obj_fields( vdynamic *obj ) {
 		}
 		break;
 	case HOBJ:
+	case HSTRUCT:
 		{
 			hl_type_obj *tobj = obj->t->obj;
 			hl_runtime_obj *o = tobj->rt;
@@ -1124,3 +1170,5 @@ DEFINE_PRIM(_ARR, obj_fields, _DYN);
 DEFINE_PRIM(_DYN, obj_copy, _DYN);
 DEFINE_PRIM(_DYN, get_virtual_value, _DYN);
 DEFINE_PRIM(_I32, hash, _BYTES);
+DEFINE_PRIM(_BYTES, field_name, _I32);
+

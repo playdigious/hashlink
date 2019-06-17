@@ -6,7 +6,7 @@ INSTALL_DIR ?= $(PREFIX)
 
 LIBS=fmt sdl ssl openal ui uv mysql
 
-CFLAGS = -Wall -O3 -I src -msse2 -mfpmath=sse -std=c11 -I include/pcre -I include/mikktspace -D LIBHL_EXPORTS
+CFLAGS = -Wall -O3 -I src -msse2 -mfpmath=sse -std=c11 -I include/pcre -I include/mikktspace -I include/minimp3 -D LIBHL_EXPORTS
 LFLAGS = -L. -lhl
 LIBFLAGS =
 HLFLAGS = -ldl
@@ -27,7 +27,7 @@ STD = src/std/array.o src/std/buffer.o src/std/bytes.o src/std/cast.o src/std/da
 
 HL = src/code.o src/jit.o src/main.o src/module.o src/debugger.o
 
-FMT = libs/fmt/fmt.o libs/fmt/sha1.o include/mikktspace/mikktspace.o libs/fmt/mikkt.o
+FMT = libs/fmt/fmt.o libs/fmt/sha1.o include/mikktspace/mikktspace.o libs/fmt/mikkt.o libs/fmt/dxt.o
 
 SDL = libs/sdl/sdl.o libs/sdl/gl.o
 
@@ -62,8 +62,15 @@ else ifeq ($(UNAME),Darwin)
 
 # Mac
 LIBEXT=dylib
-CFLAGS += -m$(ARCH) -I /opt/libjpeg-turbo/include -I /usr/local/opt/jpeg-turbo/include -I /usr/local/include -I /usr/local/opt/libvorbis/include -I /usr/local/opt/openal-soft/include -Dopenal_soft
+CFLAGS += -m$(ARCH) -I /opt/libjpeg-turbo/include -I /usr/local/opt/jpeg-turbo/include -I /usr/local/include -I /usr/local/opt/libvorbis/include -I /usr/local/opt/openal-soft/include -Dopenal_soft  -DGL_SILENCE_DEPRECATION
 LFLAGS += -Wl,-export_dynamic -L/usr/local/lib
+
+ifdef OSX_SDK
+ISYSROOT = $(shell xcrun --sdk macosx$(OSX_SDK) --show-sdk-path)
+CFLAGS += -isysroot $(ISYSROOT)
+LFLAGS += -isysroot $(ISYSROOT)
+endif
+
 LIBFLAGS += -L/opt/libjpeg-turbo/lib -L/usr/local/opt/jpeg-turbo/lib -L/usr/local/lib -L/usr/local/opt/libvorbis/lib -L/usr/local/opt/openal-soft/lib
 LIBOPENGL = -framework OpenGL
 LIBOPENAL = -lopenal
@@ -74,7 +81,7 @@ else
 
 # Linux
 CFLAGS += -m$(ARCH) -fPIC -pthread
-LFLAGS += -lm -Wl,--export-dynamic -Wl,--no-undefined
+LFLAGS += -lm -Wl,-rpath,. -Wl,--export-dynamic -Wl,--no-undefined
 
 ifeq ($(ARCH),32)
 CFLAGS += -I /usr/include/i386-linux-gnu
@@ -125,7 +132,7 @@ hl: ${HL} libhl
 	${CC} ${CFLAGS} -o hl ${HL} ${LFLAGS} ${HLFLAGS}
 
 fmt: ${FMT} libhl
-	${CC} ${CFLAGS} -I include/mikktspace -shared -o fmt.hdll ${FMT} ${LIBFLAGS} -L. -lhl -lpng $(LIBTURBOJPEG) -lz -lvorbisfile
+	${CC} ${CFLAGS} -I include/mikktspace -I include/minimp3 -shared -o fmt.hdll ${FMT} ${LIBFLAGS} -L. -lhl -lpng $(LIBTURBOJPEG) -lz -lvorbisfile
 
 sdl: ${SDL} libhl
 	${CC} ${CFLAGS} -shared -o sdl.hdll ${SDL} ${LIBFLAGS} -L. -lhl -lSDL2 $(LIBOPENGL)
