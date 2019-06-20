@@ -74,7 +74,6 @@ typedef enum {
 	TouchDown = 200,
 	TouchUp,
 	TouchMove,
-	CloudSaveLoaded = 300,
 	AppTerminating = 400,
 	LowMemory,
 	WillEnterBackground,
@@ -117,8 +116,6 @@ typedef struct {
 	float fingerY;
 	int fingerIdHigh;
 	int fingerIdLow;
-	const char * saveName;
-	const char * saveData;
 } event_data;
 
 #ifdef HL_IOS
@@ -364,21 +361,8 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
 			event->button = e.caxis.axis;
 			event->value = e.caxis.value;
 			break;
-		case SDL_USEREVENT:
-			switch(e.user.code)
-			{
-				case UserEvent_CloudSaveLoaded:
-					event->type = CloudSaveLoaded;
-					event->saveData = e.user.data1;
-					event->saveName = e.user.data2;
-					break;
-				default:
-					printf("Unknown event type 0x%X\\n", e.user.code);
-					continue;
-			}
-			break;
 		default:
-			//printf("Unknown event type 0x%X\\n", e.type);
+			printf("Unknown event type 0x%X\\n", e.type);
 			continue;
 		}
 		return true;
