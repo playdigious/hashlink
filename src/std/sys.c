@@ -24,7 +24,7 @@
 #ifdef HL_CONSOLE
 #	include <posix/posix.h>
 #endif
-#if !defined(HL_CONSOLE) || defined(HL_WIN)
+#if !defined(HL_CONSOLE) || defined(HL_WIN_DESKTOP)
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,6 +37,8 @@
 #	include <windows.h>
 #	include <direct.h>
 #	include <conio.h>
+#	include <fcntl.h>
+#	include <io.h>
 #	define getenv _wgetenv
 #	define putenv _wputenv
 #	define getcwd(buf,size) (void*)(int_val)GetCurrentDirectoryW(size,buf)
@@ -137,7 +139,7 @@ HL_PRIM vbyte *hl_sys_string() {
 }
 
 HL_PRIM vbyte *hl_sys_locale() {
-#ifdef HL_WIN_DESKTOP
+#if defined(HL_WIN_DESKTOP)
 	wchar_t loc[LOCALE_NAME_MAX_LENGTH];
 	int len = GetSystemDefaultLocaleName(loc,LOCALE_NAME_MAX_LENGTH);
 	return len == 0 ? NULL : hl_copy_bytes((vbyte*)loc,(len+1)*2);
@@ -145,8 +147,10 @@ HL_PRIM vbyte *hl_sys_locale() {
 	return (vbyte*)getDeviceLanguageCode();
 #elif __ANDROID__
 	return (vbyte *) hl_to_utf16(getLocaleLanguage());
+#elif defined(HL_CONSOLE)
+	return (vbyte*)sys_get_user_lang();
 #else
-	return (vbyte*)setlocale(LC_ALL, NULL);
+	return (vbyte*)getenv("LANG");
 #endif
 }
 
@@ -157,8 +161,14 @@ HL_PRIM void hl_sys_print( vbyte *msg ) {
 #elif defined(HL_XBO)
 	OutputDebugStringW((LPCWSTR)msg);
 #else
+#	ifdef HL_WIN_DESKTOP
+	_setmode(_fileno(stdout),_O_U8TEXT);
+#	endif
 	uprintf(USTR("%s"),(uchar*)msg);
 	fflush(stdout);
+#	ifdef HL_WIN_DESKTOP
+	_setmode(_fileno(stdout),_O_TEXT);
+#	endif
 #endif
 	hl_blocking(false);
 }
@@ -210,7 +220,7 @@ HL_PRIM bool hl_sys_put_env( vbyte *e, vbyte *v ) {
 #	undef environ
 #	define environ _wenviron
 #else
-extern char **environ;
+extern pchar **environ;
 #endif
 
 HL_PRIM varray *hl_sys_env() {
@@ -640,13 +650,24 @@ HL_PRIM void hl_sys_init(void **args, int nargs, void *hlfile) {
 	sys_args = (pchar**)args;
 	sys_nargs = nargs;
 	hl_file = hlfile;
-#	ifdef HL_WIN
+#	ifdef HL_WIN_DESKTOP
 	setlocale(LC_CTYPE, ""); // printf to current locale
 #	endif
 }
 
 HL_PRIM vbyte *hl_sys_hl_file() {
-	return hl_file!=NULL ? (vbyte*)hl_file : hl_sys_exe_path();
+	return (vbyte*)hl_file;
+}
+
+static void *reload_fun = NULL;
+static void *reload_param = NULL;
+HL_PRIM void hl_setup_reload_check( void *freload, void *param ) {
+	reload_fun = freload;
+	reload_param = param;
+}
+
+HL_PRIM bool hl_sys_check_reload() {
+	return reload_fun && ((bool(*)(void*))reload_fun)(reload_param);
 }
 
 #ifndef HL_MOBILE
@@ -688,3 +709,4 @@ DEFINE_PRIM(_BYTES, sys_exe_path, _NO_ARG);
 DEFINE_PRIM(_I32, sys_get_char, _BOOL);
 DEFINE_PRIM(_ARR, sys_args, _NO_ARG);
 DEFINE_PRIM(_I32, sys_getpid, _NO_ARG);
+DEFINE_PRIM(_BOOL, sys_check_reload, _NO_ARG);
