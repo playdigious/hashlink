@@ -42,7 +42,6 @@ package sdl;
 	var TouchDown	= 200;
 	var TouchUp		= 201;
 	var TouchMove	= 202;
-	var CloudSaveLoaded = 300;
 	//AppEvents
 	var AppTerminating = 400;
 	var LowMemory = 401;
