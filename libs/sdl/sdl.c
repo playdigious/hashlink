@@ -16,13 +16,11 @@
 #    include <SDL2/SDL_syswm.h>
 #    include "IOS_IO.h"
 #    include "iOS_Utils.h"
-#    include "SDLCustomEvent.h"
 #endif
 
 #ifdef HL_ANDROID
 #   include <GLES/gl.h>
 #   include <SDL_joystick.h>
-#   include "SDLCustomEvent.h"
 
 extern SDL_Window *Android_Window;
 #endif
@@ -34,7 +32,6 @@ extern SDL_Window *Android_Window;
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include "SDLCustomEvent.h"
 #include "math.h"
 
 typedef enum {
@@ -497,23 +494,21 @@ struct { // screen size structure
 	int h;
 } screen;
 
-HL_PRIM SDL_Window *HL_NAME(win_create)(int width, int height) {
+// Window
+
+HL_PRIM SDL_Window *HL_NAME(win_create_ex)(int x, int y, int width, int height, int sdlFlags) {
 	SDL_Window *w;
 	// force window to match device resolution on mobile
-#if defined(HL_IOS) || defined(HL_TVOS)
+#ifdef	HL_MOBILE
 	SDL_DisplayMode displayMode;
 	SDL_GetDesktopDisplayMode(0, &displayMode);
-#	ifdef HL_IOS
+#	if defined(HL_IOS)
 	global_sdl_window = w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | RETINA);
-#	else
+#	elif defined(HL_TVOS) 
 	global_sdl_window = w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS);
-#	endif
-#elif defined(HL_ANDROID)
-	SDL_DisplayMode mode;
-	SDL_GetDesktopDisplayMode(0, &mode);
-	
-	screen.w = mode.w;
-	screen.h = mode.h;
+#	elif defined(HL_ANDROID) 
+	screen.w = displayMode.w;
+	screen.h = displayMode.h;
 	
 	w = Android_Window;
 	
@@ -521,17 +516,24 @@ HL_PRIM SDL_Window *HL_NAME(win_create)(int width, int height) {
 	{
 		w = SDL_CreateWindow("DeadCells", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen.w, screen.h, SDL_WINDOW_OPENGL | SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
 	}
+#	else	
+	w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | sdlFlags);
+#	endif
 #else
-	w = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	w = SDL_CreateWindow("", x, y, width, height, SDL_WINDOW_OPENGL | sdlFlags);
 #endif
-#ifdef HL_WIN
+#	ifdef HL_WIN
 	// force window to show even if the debugger force process windows to be hidden
 	if( (SDL_GetWindowFlags(w) & SDL_WINDOW_INPUT_FOCUS) == 0 ) {
 		SDL_HideWindow(w);
 		SDL_ShowWindow(w);
 	}
-#endif
+#	endif
 	return w;
+}
+
+HL_PRIM SDL_Window *HL_NAME(win_create)(int width, int height) {
+	return HL_NAME(win_create_ex)(SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, 0);
 }
 
 HL_PRIM SDL_GLContext HL_NAME(win_get_glcontext)(SDL_Window *win) {
@@ -597,8 +599,24 @@ HL_PRIM void HL_NAME(win_set_title)(SDL_Window *win, vbyte *title) {
 	SDL_SetWindowTitle(win, (char*)title);
 }
 
+HL_PRIM void HL_NAME(win_set_position)(SDL_Window *win, int x, int y) {
+	SDL_SetWindowPosition(win, x, y);
+}
+
+HL_PRIM void HL_NAME(win_get_position)(SDL_Window *win, int *x, int *y) {
+	SDL_GetWindowPosition(win, x, y);
+}
+
 HL_PRIM void HL_NAME(win_set_size)(SDL_Window *win, int width, int height) {
 	SDL_SetWindowSize(win, width, height);
+}
+
+HL_PRIM void HL_NAME(win_set_min_size)(SDL_Window *win, int width, int height) {
+	SDL_SetWindowMinimumSize(win, width, height);
+}
+
+HL_PRIM void HL_NAME(win_set_max_size)(SDL_Window *win, int width, int height) {
+	SDL_SetWindowMaximumSize(win, width, height);
 }
 
 HL_PRIM void HL_NAME(win_get_size)(SDL_Window *win, int *width, int *height) {
@@ -612,6 +630,23 @@ HL_PRIM void HL_NAME(win_get_size)(SDL_Window *win, int *width, int *height) {
 #endif
 }
 
+HL_PRIM void HL_NAME(win_get_min_size)(SDL_Window *win, int *width, int *height) {
+	SDL_GetWindowMinimumSize(win, width, height);
+}
+
+HL_PRIM void HL_NAME(win_get_max_size)(SDL_Window *win, int *width, int *height) {
+	SDL_GetWindowMaximumSize(win, width, height);
+}
+
+HL_PRIM double HL_NAME(win_get_opacity)(SDL_Window *win) {
+	float opacity = 1.0f;
+	SDL_GetWindowOpacity(win, &opacity);
+	return opacity;
+}
+
+HL_PRIM bool HL_NAME(win_set_opacity)(SDL_Window *win, double opacity) {
+	return SDL_SetWindowOpacity(win, (float)opacity) == 0;
+}
 HL_PRIM void HL_NAME(win_resize)(SDL_Window *win, int mode) {
 	switch( mode ) {
 		case 0:
@@ -695,14 +730,23 @@ HL_PRIM void HL_NAME(win_destroy)(SDL_Window *win, SDL_GLContext gl) {
 
 #define TWIN _ABSTRACT(sdl_window)
 #define TGL _ABSTRACT(sdl_gl)
+DEFINE_PRIM(TWIN, win_create_ex, _I32 _I32 _I32 _I32 _I32);
 DEFINE_PRIM(TWIN, win_create, _I32 _I32);
 DEFINE_PRIM(TGL, win_get_glcontext, TWIN);
 DEFINE_PRIM(_BOOL, win_set_fullscreen, TWIN _I32);
 DEFINE_PRIM(_VOID, win_resize, TWIN _I32);
 DEFINE_PRIM(_VOID, win_set_title, TWIN _BYTES);
 DEFINE_PRIM(_VOID, lock_fps,_I32);
+DEFINE_PRIM(_VOID, win_set_position, TWIN _I32 _I32);
+DEFINE_PRIM(_VOID, win_get_position, TWIN _REF(_I32) _REF(_I32));
 DEFINE_PRIM(_VOID, win_set_size, TWIN _I32 _I32);
+DEFINE_PRIM(_VOID, win_set_min_size, TWIN _I32 _I32);
+DEFINE_PRIM(_VOID, win_set_max_size, TWIN _I32 _I32);
 DEFINE_PRIM(_VOID, win_get_size, TWIN _REF(_I32) _REF(_I32));
+DEFINE_PRIM(_VOID, win_get_min_size, TWIN _REF(_I32) _REF(_I32));
+DEFINE_PRIM(_VOID, win_get_max_size, TWIN _REF(_I32) _REF(_I32));
+DEFINE_PRIM(_F64, win_get_opacity, TWIN);
+DEFINE_PRIM(_BOOL, win_set_opacity, TWIN _F64);
 DEFINE_PRIM(_VOID, win_swap_window, TWIN);
 DEFINE_PRIM(_VOID, win_render_to, TWIN TGL);
 DEFINE_PRIM(_VOID, win_destroy, TWIN TGL);
