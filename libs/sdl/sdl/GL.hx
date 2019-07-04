@@ -214,11 +214,11 @@ class GL {
 	}
 
 	@:hlNative("sdl","gl_tex_image2d")
-	public static function texImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, image : hl.Bytes, off : Int, len : Int ) {
+	public static function texImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, image : hl.Bytes #if mobile, off : Int, len : Int #end) {
 	}
 
 	@:hlNative("sdl","gl_compressed_tex_image2d")
-	public static function compressedTexImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, size : Int, data : hl.Bytes, off : Int, len : Int ) {
+	public static function compressedTexImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, size : Int, data : hl.Bytes #if mobile, off : Int, len : Int #end) {
 	}
 
 	@:hlNative("sdl","gl_tex_image3d")
