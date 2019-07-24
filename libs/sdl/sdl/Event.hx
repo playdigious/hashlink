@@ -17,10 +17,7 @@ package sdl;
 	public var fingerY : Single;
 	public var fingerIdHigh : Int;
 	public var fingerIdLow : Int;
-	public var saveName : hl.Bytes;
-	public var saveData : hl.Bytes;
-	public function new() {
-	}
+	public function new() {}
 }
 
 @:enum abstract EventType(Int) {
