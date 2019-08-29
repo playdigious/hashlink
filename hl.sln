@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.757
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sdl", "libs\sdl\sdl.vcxproj", "{12049F27-EA26-4A33-ADF8-E542C4167C00}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -221,5 +221,8 @@ Global
 		{EC79BC9F-9947-4BCC-92F9-14F90CDE4B04} = {0EC4330B-6B61-45F8-B297-CA7097AFFD98}
 		{EC2DCE5C-267A-4050-8DDE-5BF58FF08E31} = {0EC4330B-6B61-45F8-B297-CA7097AFFD98}
 		{540E0E11-B7B1-43F8-B107-0867B2D97F74} = {0EC4330B-6B61-45F8-B297-CA7097AFFD98}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B3CF1D0F-A915-4A8B-B5D0-863055D39031}
 	EndGlobalSection
 EndGlobal
