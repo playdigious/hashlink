@@ -32,7 +32,8 @@ class Sdl {
 
 	public static function lockFPS(wantedFPS:Int = 30)
 	{
-		return lock_fps(wantedFPS);
+		return lock_fps(wantedFPS > 0 ? wantedFPS : 0);
+		//native expects UNSIGNED int. No passing neg values
 	}
 
 	@:hlNative("sdl","lock_fps")
