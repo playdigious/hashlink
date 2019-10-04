@@ -11,9 +11,11 @@ extern bool sys_jpg_decode( vbyte *data, int dataLen, vbyte *out, int width, int
 #include <zlib.h>
 #include <vorbis/vorbisfile.h>
 
+#if !defined(HL_MOBILE)
 #define MINIMP3_IMPLEMENTATION
 #define MINIMP3_FLOAT_OUTPUT
 #include <minimp3.h>
+#endif
 
 /* ------------------------------------------------- IMG --------------------------------------------------- */
 
@@ -422,6 +424,7 @@ DEFINE_PRIM(_I32, ogg_tell, _OGG);
 DEFINE_PRIM(_BOOL, ogg_seek, _OGG _I32);
 DEFINE_PRIM(_I32, ogg_read, _OGG _BYTES _I32 _I32);
 
+#if !defined(HL_MOBILE)
 /* ----------------------------------------------- SOUND : MP3 ------------------------------------------------ */
 
 typedef struct _fmt_mp3 fmt_mp3;
@@ -510,6 +513,7 @@ HL_PRIM int HL_NAME(mp3_decode_frame)( fmt_mp3 *o, char *bytes, int size, int po
 DEFINE_PRIM(_MP3, mp3_open, _BYTES _I32);
 DEFINE_PRIM(_VOID, mp3_frame_info, _MP3 _REF(_I32) _REF(_I32) _REF(_I32) _REF(_I32) _REF(_I32))
 DEFINE_PRIM(_I32, mp3_decode_frame, _MP3 _BYTES _I32 _I32 _BYTES _I32 _I32);
+#endif // !defined(HL_MOBILE)
 
 /* ------------------------------------------------- CRYPTO --------------------------------------------------- */
 
