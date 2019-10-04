@@ -28,6 +28,10 @@
 #	define USE_PTRACE
 #endif
 
+#ifdef HL_ANDROID
+#   undef USE_PTRACE
+#endif
+
 #if defined(HL_WIN)
 static HANDLE last_process = NULL, last_thread = NULL;
 static int last_pid = -1;

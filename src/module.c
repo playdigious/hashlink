@@ -22,6 +22,7 @@
 #include <hl.h>
 #include <hlmodule.h>
 
+#ifndef HL_MOBILE //on mobile with use Haslink/C -- no modules needed
 #ifdef HL_WIN
 #	include <windows.h>
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
@@ -682,3 +683,4 @@ void hl_module_free( hl_module *m ) {
 		hl_jit_free(m->jit_ctx,false);
 	free(m);
 }
+#endif //#ifndef HL_MOBILE

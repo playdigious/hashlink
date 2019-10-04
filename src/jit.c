@@ -25,6 +25,7 @@
 #include <math.h>
 #include <hlmodule.h>
 
+#ifndef HL_MOBILE //prevent using jit on mobile, it wouldn't work anyway
 #ifdef __arm__
 #	error "JIT does not support ARM processors, only x86 and x86-64 are supported, please use HashLink/C native compilation instead"
 #endif
@@ -4232,4 +4233,4 @@ void *hl_jit_code( jit_ctx *ctx, hl_module *m, int *codesize, hl_debug_infos **d
 	}
 	return code;
 }
-
+#endif //#ifndef HL_MOBILE
