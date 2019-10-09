@@ -396,7 +396,7 @@ HL_PRIM void HL_NAME(gl_tex_image2d)( int target, int level, int internalFormat,
 }
 
 HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int size, vbyte *data ) {
-#if defined(HL_IOS) || defined (HL_TVOS) || defined (HL_MAC)
+#if defined(HL_IOS) || defined (HL_TVOS) || defined (HL_MAC) || defined(HL_ANDROID)
 	//printf("gl_compressed_tex_image2d 0x%x,%d,0x%x,%d,%d,%d,0x%x ptr=0x%x\n",target,level,internalFormat,width,height,border,size, data);
 	glCompressedTexImage2D(target, level, internalFormat, width, height, border, size, data);
 	chkErr();
@@ -628,7 +628,7 @@ HL_PRIM void HL_NAME(gl_dispatch_compute)( int num_groups_x, int num_groups_y, i
 }
 
 HL_PRIM void HL_NAME(gl_memory_barrier)( int barriers ) {
-#	if !defined(HL_IOS) && !defined(HL_TVOS) && !defined(HL_MAC)
+#	if !defined(HL_IOS) && !defined(HL_TVOS) && !defined(HL_MAC) && !defined(HL_ANDROID)
 	glMemoryBarrier(barriers);
 	chkErr();
 #	endif
