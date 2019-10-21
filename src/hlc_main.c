@@ -56,7 +56,7 @@ extern void sys_global_exit();
 #endif
 
 //Used to get callstack on Apple devices
-#if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS)
+#if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS) || __ANDROID__
 HL_API int util_callstack_adresses(int size, void** adresses);
 HL_API const char *util_address_to_name(void* adress);
 #endif
@@ -87,7 +87,7 @@ static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
 		return out;
 	}
 #endif
-#if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS)
+#if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS) || __ANDROID__
 	uchar *str = hl_to_utf16(util_address_to_name(addr));
 	*outSize = usprintf(out, *outSize, USTR("%s"),str);
 	return out;
@@ -101,7 +101,7 @@ static int hlc_capture_stack( void **stack, int size ) {
 	count = CaptureStackBackTrace(2, size, stack, NULL) - 8; // 8 startup
 	if( count < 0 ) count = 0;
 #	endif
-#if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS)
+#if defined(TARGET_OS_IOS) || defined(TARGET_OS_TVOS) || __ANDROID__
 	count = util_callstack_adresses(size, stack) - 8; // 8 startup
 	if( count < 0 ) count = 0;
 #endif
