@@ -92,6 +92,8 @@ typedef uchar pchar;
 #endif
 #if __ANDROID__
 #include <Android_Utils.h>
+#include <SDL.h>
+
 #endif
 
 #ifndef CLK_TCK
@@ -174,6 +176,10 @@ HL_PRIM void hl_sys_print( vbyte *msg ) {
 }
 
 HL_PRIM void hl_sys_exit( int code ) {
+	JNIEnv *env = getEnv();
+	struct jcallBundle sysExit = getClassStaticMethod(env, "com/playdigious/deadcells/mobile/Utils", "jniExit", "(I)V");
+	(*env)->CallStaticVoidMethod(env, sysExit.classCalled, sysExit.methID, code);
+	(*env)->DeleteLocalRef(env, sysExit.classCalled);
 	exit(code);
 }
 
