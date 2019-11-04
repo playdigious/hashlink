@@ -165,8 +165,15 @@ hl_code *try_load_embedded_module() {
 	if (rsrc != NULL) {
 		size = SizeofResource(NULL, rsrc);
 		fdata = LoadResource(NULL, rsrc);
-		if (size > 0 && fdata != NULL) 
-			code = hl_code_read((unsigned char*)fdata, size);
+		char *error_msg = NULL;
+		if (size > 0 && fdata != NULL) {
+			code = hl_code_read((unsigned char*)fdata, size, &error_msg);
+			if (code == NULL) {
+				printf("Failed to load embedded module: ");
+				if (error_msg) printf("%s\n", error_msg);
+				else printf("unknown error\n");
+			}
+		}
 	}
 #endif
 
