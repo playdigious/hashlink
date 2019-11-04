@@ -329,7 +329,6 @@ int main(int argc, pchar *argv[]) {
 		return embed_standalone(file,standalone);
 
 	hl_global_init();
-	hl_register_thread(&ctx);
 
 	ctx.code = try_load_embedded_module();
 	if (ctx.code != NULL) {
@@ -370,8 +369,8 @@ int main(int argc, pchar *argv[]) {
 		}
 	}
 
-	hl_sys_init((void**)argv,argc,file);
 	hl_register_thread(&ctx);
+	hl_sys_init((void**)argv, argc, file);
 	ctx.file = file;
 
 	// Only load code from file if we don't have embedded code already
