@@ -7,7 +7,6 @@
 *.exe
 *.dll
 *.user
-*.n
 Debug
 Release
 x64

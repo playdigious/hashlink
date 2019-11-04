@@ -12,6 +12,7 @@ LIBFLAGS =
 HLFLAGS = -ldl
 LIBEXT = so
 LIBTURBOJPEG = -lturbojpeg
+LIBPNG = -lpng
 
 PCRE = include/pcre/pcre_chartables.o include/pcre/pcre_compile.o include/pcre/pcre_dfa_exec.o \
 	include/pcre/pcre_exec.o include/pcre/pcre_fullinfo.o include/pcre/pcre_globals.o \
@@ -81,7 +82,8 @@ else
 
 # Linux
 CFLAGS += -m$(ARCH) -fPIC -pthread
-LFLAGS += -lm -Wl,-rpath,. -Wl,--export-dynamic -Wl,--no-undefined
+CFLAGS += -I /usr/include/libpng16
+LFLAGS += -lm -Wl,--export-dynamic -Wl,--no-undefined
 
 ifeq ($(ARCH),32)
 CFLAGS += -I /usr/include/i386-linux-gnu
@@ -89,7 +91,7 @@ LIBFLAGS += -L/opt/libjpeg-turbo/lib
 else
 LIBFLAGS += -L/opt/libjpeg-turbo/lib64
 endif
-
+LIBPNG = -lpng16
 LIBOPENAL = -lopenal
 RELEASE_NAME = linux
 

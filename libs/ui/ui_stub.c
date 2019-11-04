@@ -37,7 +37,7 @@ HL_PRIM void HL_NAME(ui_win_destroy)( wref *w ) {
 }
 
 HL_PRIM int HL_NAME(ui_loop)( bool blocking ) {
-	return 1;
+	return 2;
 }
 
 HL_PRIM void HL_NAME(ui_stop_loop)() {
