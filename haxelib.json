@@ -1,9 +1,0 @@
-{
-    "name": "hashlink",
-    "url": "https://github.com/HaxeFoundation/hashlink",
-    "description": "HashLink VM",
-    "license": "MIT",
-    "version": "1.9.0",
-    "releasenote": "",
-    "classPath": "src"
-}
