@@ -134,7 +134,8 @@ HL_PRIM vbyte *hl_sys_locale() {
 #elif defined(HL_CONSOLE)
 	return (vbyte*)sys_get_lang();
 #else
-	return (vbyte*)getenv("LANG");
+	char *lang = getenv("LANG");
+	return lang[0] == '\0' ? NULL : hl_to_utf16(lang);
 #endif
 }
 
