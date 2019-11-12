@@ -176,10 +176,12 @@ HL_PRIM void hl_sys_print( vbyte *msg ) {
 }
 
 HL_PRIM void hl_sys_exit( int code ) {
+#if __ANDROID__
 	JNIEnv *env = getEnv();
 	struct jcallBundle sysExit = getClassStaticMethod(env, "com/playdigious/deadcells/mobile/Utils", "jniExit", "(I)V");
 	(*env)->CallStaticVoidMethod(env, sysExit.classCalled, sysExit.methID, code);
 	(*env)->DeleteLocalRef(env, sysExit.classCalled);
+#endif
 	exit(code);
 }
 
