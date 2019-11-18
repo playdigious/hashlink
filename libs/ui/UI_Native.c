@@ -63,9 +63,10 @@ void ui_ui_sentinel_tick (ui_sentinel* sent)
 	does not compile anymore. 
 	Taking ui_ui_sentinel_tick code from ui_stub.c, doing nothing.
 	Code kept for archives
-
-	sent->ticks++;
 	*/
+#if 0
+	sent->ticks++;
+#endif
 }
 
 void ui_ui_sentinel_pause (ui_sentinel* sent, bool b)
@@ -77,12 +78,14 @@ void ui_ui_sentinel_pause (ui_sentinel* sent, bool b)
 	does not compile anymore. 
 	Taking ui_ui_sentinel_pause code from ui_stub.c, doing nothing.
 	Code kept for archives
-
-	sent->pause = b;
 	*/
+#if 0
+	sent->pause = b;
+#endif
 }
 
-/* see ui_ui_start_sentinel
+// see ui_ui_start_sentinel
+#if 0
 static void sentinel_loop( ui_sentinel *s )
 {
 	int time_ms = (int)((s->timeout * 1000.) / 16.);
@@ -113,7 +116,8 @@ static void sentinel_loop( ui_sentinel *s )
 			}
 		}
 	}
-}*/
+}
+#endif
 
 ui_sentinel* ui_ui_start_sentinel (double timeout, vclosure* vc)
 {
@@ -124,7 +128,9 @@ ui_sentinel* ui_ui_start_sentinel (double timeout, vclosure* vc)
 	does not compile anymore. 
 	Taking ui_ui_start_sentinel code from ui_stub.c, and returning null only.
 	Code kept for archives
+	*/
 
+#if 0
 	ui_sentinel *sent = &ui_sentinel_d;
 	if( vc->hasValue ) hl_error("Cannot set sentinel on closure callback");
 #ifdef HL_DEBUG
@@ -136,7 +142,8 @@ ui_sentinel* ui_ui_start_sentinel (double timeout, vclosure* vc)
 	sent->original = hl_thread_current();
 	sent->callback = vc->fun;
 	sent->thread = hl_thread_start(sentinel_loop,sent,false);
-	return sent;*/
+	return sent;
+#endif
 	return NULL;
 }
 
@@ -149,9 +156,10 @@ bool ui_ui_sentinel_is_paused(ui_sentinel* sent)
 	does not compile anymore. 
 	Taking ui_ui_sentinel_is_paused code from ui_stub.c, doing nothing.
 	Code kept for archives
-
-	return sent->pause;
 	*/
+#if 0
+	return sent->pause;
+#endif
 	return false;
 }
 
@@ -282,4 +290,9 @@ void ui_ui_winlog_set_text (ui_window* win, vbyte* text, bool autoscroll)
 #if defined(HL_MOBILE)
 	win->datas.message = hl_to_utf8(text);
 #endif
+}
+
+vbyte* ui_ui_choose_file (bool forSave, vdynamic *options)
+{
+	return NULL;
 }
