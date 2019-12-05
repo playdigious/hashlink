@@ -43,7 +43,7 @@ if (Check-Install-Lib "SDL" "$sdlTargetPath") {
     Expand-Archive "$scratchDir\$sdlZip" -DestinationPath "$scratchDir"
     Move-Item -Verbose -Path "$scratchDir\SDL2-$sdlVersion" -Destination "$sdlTargetPath"   
     Copy-Item -Verbose -Path "$sdlTargetPath\lib\x86\SDL2.dll" -Destination "$haxetoolsDir"
-    Copy-Item -Verbose -Path "$sdlTargetPath\lib\x64\SDL2.dll" -Destination "$haxetoolsDir\x64"
+    #Copy-Item -Verbose -Path "$sdlTargetPath\lib\x64\SDL2.dll" -Destination "$haxetoolsDir\x64"
     Write-Host "SDL includes $sdlVersion installed."
 }
 
@@ -56,7 +56,7 @@ if (Check-Install-Lib "OpenAL" "$openalTargetPath") {
     Expand-Archive "$scratchDir\$openalZip" -DestinationPath "$scratchDir"
     Move-Item -Verbose -Path "$scratchDir\openal-soft-$openalVersion-bin" -Destination "$openalTargetPath"    
     Copy-Item -Verbose -Path "$openalTargetPath\bin\Win32\soft_oal.dll" -Destination "$haxetoolsDir\OpenAL32.dll"
-    Copy-Item -Verbose -Path "$openalTargetPath\bin\Win64\soft_oal.dll" -Destination "$haxetoolsDir\x64\OpenAL32.dll"
+    #Copy-Item -Verbose -Path "$openalTargetPath\bin\Win64\soft_oal.dll" -Destination "$haxetoolsDir\x64\OpenAL32.dll"
     Write-Host "OpenAL $openalVersion installed."
 }
 
