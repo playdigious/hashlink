@@ -15,7 +15,6 @@
 #    include <OpenGLES/ES3/glext.h>
 #    include <SDL2/SDL_syswm.h>
 #    include "IOS_IO.h"
-#    include "iOS_Utils.h"
 #endif
 
 #ifdef HL_ANDROID
@@ -127,6 +126,9 @@ HL_PRIM bool HL_NAME(init_once)() {
 #	ifdef HL_ANDROID
 	SDL_SetHint(SDL_HINT_TV_REMOTE_AS_JOYSTICK, "0");
 #	endif
+	SDL_SetHint(SDL_HINT_GAMECONTROLLERCONFIG_FILE, "gamecontrollerdb.txt");
+	// tell SDL to load the given controller DB at init time
+	// the file MUST BE INCLUDED WITH THE APP ASSETS
 #endif
 	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
