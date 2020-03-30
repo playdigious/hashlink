@@ -273,6 +273,14 @@ HL_PRIM bool HL_NAME(ui_sentinel_is_paused)( vsentinel *s ) {
 }
 
 HL_PRIM void HL_NAME(ui_close_console)() {
+	// FreeConsole() cuts off the console output stream, but it doesn't actually
+	// close the console window when the app is linked with /SUBSYSTEM:CONSOLE.
+	// So, we need to hide it manually.
+	HWND consoleWindow = GetConsoleWindow();
+	if (NULL != consoleWindow) {
+		ShowWindow(consoleWindow, SW_HIDE);
+	}
+
 	FreeConsole();
 }
 
