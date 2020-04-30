@@ -167,7 +167,7 @@ HL_PRIM bool HL_NAME(init_once)() {
 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 	SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
-	
+
 	return true;
 }
 
@@ -185,7 +185,7 @@ HL_PRIM void HL_NAME(gl_options)( int major, int minor, int depth, int stencil, 
 				SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 				else
 					SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0); // auto
-					
+
 					if (samples > 1) {
 						SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 						SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, samples);
@@ -198,7 +198,7 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
 	while (true) {
 		SDL_Event e;
 		if (SDL_PollEvent(&e) == 0) break;
-        
+
 		switch (e.type) {
             case SDL_APP_TERMINATING:
                 event->type = AppTerminating;
@@ -464,7 +464,7 @@ HL_PRIM const char *HL_NAME(detect_keyboard_layout)() {
 	char q = SDL_GetKeyFromScancode(SDL_SCANCODE_Q);
 	char w = SDL_GetKeyFromScancode(SDL_SCANCODE_W);
 	char y = SDL_GetKeyFromScancode(SDL_SCANCODE_Y);
-	
+
 	if (q == 'q' && w == 'w' && y == 'y') return "qwerty";
 	if (q == 'a' && w == 'z' && y == 'y') return "azerty";
 	if (q == 'q' && w == 'w' && y == 'z') return "qwertz";
@@ -508,19 +508,19 @@ HL_PRIM SDL_Window *HL_NAME(win_create_ex)(int x, int y, int width, int height, 
 	SDL_GetDesktopDisplayMode(0, &displayMode);
 #	if defined(HL_IOS)
 	global_sdl_window = w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | RETINA);
-#	elif defined(HL_TVOS) 
+#	elif defined(HL_TVOS)
 	global_sdl_window = w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS);
-#	elif defined(HL_ANDROID) 
+#	elif defined(HL_ANDROID)
 	screen.w = displayMode.w;
 	screen.h = displayMode.h;
-	
+
 	w = Android_Window;
-	
+
 	if(w == NULL)
 	{
-		w = SDL_CreateWindow("DeadCells", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen.w, screen.h, SDL_WINDOW_OPENGL | SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+		w = SDL_CreateWindow("DeadCells", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen.w, screen.h, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
 	}
-#	else	
+#	else
 	w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | sdlFlags);
 #	endif
 #else
@@ -688,7 +688,7 @@ HL_PRIM void HL_NAME(lock_fps)(Uint32 wantedFPS) {
 HL_PRIM void HL_NAME(win_swap_window)(SDL_Window *win) {
     if (isInBackground)
         return;
-    
+
         /*
     // Apple framebuffer OpenGL weirdness...
 #if TARGET_OS_IOS || TARGET_OS_TV
@@ -702,13 +702,13 @@ HL_PRIM void HL_NAME(win_swap_window)(SDL_Window *win) {
 
     // Do the GL swap
     SDL_GL_SwapWindow(win);
-		
+
 #ifdef HL_MOBILE
     // Initialize performance counter if needed
     if (frameStartTime==0)
         frameStartTime = SDL_GetPerformanceCounter();
 	if(fpsLock == false) return;
-		
+
     // Lock down to desired FPS with some "safe" guards
     double t0 = (SDL_GetPerformanceCounter() - frameStartTime) / (double)SDL_GetPerformanceFrequency();
     double delayTime = (1.0f / desiredFPS) - t0;
