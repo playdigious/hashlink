@@ -176,13 +176,14 @@ HL_PRIM void hl_sys_print( vbyte *msg ) {
 }
 
 HL_PRIM void hl_sys_exit( int code ) {
-#if __ANDROID__
+#if __ANDROID__ //do not call exit() on Android, it is considered as a process interruption (crash)
 	JNIEnv *env = getEnv();
 	struct jcallBundle sysExit = getClassStaticMethod(env, "com/playdigious/deadcells/mobile/Utils", "jniExit", "(I)V");
 	(*env)->CallStaticVoidMethod(env, sysExit.classCalled, sysExit.methID, code);
 	(*env)->DeleteLocalRef(env, sysExit.classCalled);
-#endif
+#else
 	exit(code);
+#endif
 }
 
 HL_PRIM double hl_sys_time() {
