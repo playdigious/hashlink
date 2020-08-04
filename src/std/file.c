@@ -49,6 +49,7 @@
 #else
 #	define SET_IS_STD(f,b)
 #endif
+
 typedef struct _hl_fdesc hl_fdesc;
 struct _hl_fdesc {
 	void (*finalize)( hl_fdesc * );

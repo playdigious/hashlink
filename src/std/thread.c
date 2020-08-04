@@ -208,15 +208,15 @@ DEFINE_PRIM(_DYN, tls_get, _TLS);
 DEFINE_PRIM(_VOID, tls_set, _TLS _DYN);
 
 // ----------------- DEQUE
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
 
 typedef struct _tqueue {
 	vdynamic *msg;
 	struct _tqueue *next;
 } tqueue;
 
-#if defined(__APPLE__)
-#include <TargetConditionals.h>
-#endif
 struct _hl_deque;
 typedef struct _hl_deque hl_deque;
 

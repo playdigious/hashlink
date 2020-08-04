@@ -54,4 +54,6 @@ node_modules
 args.txt
 /other/benchs/hlc
 
-\.vscode
+/.vs/
+/.dev
+/.vscode

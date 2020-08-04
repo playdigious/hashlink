@@ -60,9 +60,9 @@ class Window {
 	public var visible(default, set) : Bool = true;
 	public var opacity(get, set) : Float;
 
-	public function new( title : String, width : Int, height : Int ) {
+	public function new( title : String, width : Int, height : Int, x : Int = SDL_WINDOWPOS_CENTERED, y : Int = SDL_WINDOWPOS_CENTERED, sdlFlags : Int = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE ) {
 		while( true ) {
-			win = winCreate(width, height);
+			win = winCreateEx(x, y, width, height, sdlFlags);
 			if( win == null ) throw "Failed to create window";
 			glctx = winGetGLContext(win);
 			if( glctx == null || !GL.init() || !testGL() ) {

@@ -76,7 +76,6 @@ typedef uchar pchar;
 #define pstrlen	ustrlen
 #endif
 
-
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #if TARGET_OS_IOS || TARGET_OS_TV
@@ -89,9 +88,7 @@ typedef uchar pchar;
 #	include <sys/syslimits.h>
 #	include <limits.h>
 #	include <mach-o/dyld.h>
-#endif
-#if __ANDROID__
-#include <Android_Utils.h>
+#endif#if defined(__ANDROID__)#include <Android_Utils.h>
 #include <SDL.h>
 
 #endif
@@ -143,14 +140,14 @@ HL_PRIM vbyte *hl_sys_string() {
 HL_PRIM vbyte *hl_sys_locale() {
 #if defined(HL_WIN_DESKTOP)
 	wchar_t loc[LOCALE_NAME_MAX_LENGTH];
-	int len = GetSystemDefaultLocaleName(loc,LOCALE_NAME_MAX_LENGTH);
+	int len = GetUserDefaultLocaleName(loc,LOCALE_NAME_MAX_LENGTH);
 	return len == 0 ? NULL : hl_copy_bytes((vbyte*)loc,(len+1)*2);
 #elif TARGET_OS_TV || TARGET_OS_IOS
 	return (vbyte*)getDeviceLanguageCode();
 #elif __ANDROID__
 	return (vbyte *) hl_to_utf16(getLocaleLanguage());
 #elif defined(HL_CONSOLE)
-	return (vbyte*)sys_get_user_lang();
+	return (vbyte*)sys_get_lang();
 #else
 	return (vbyte*)getenv("LANG");
 #endif
@@ -665,7 +662,7 @@ HL_PRIM void hl_sys_init(void **args, int nargs, void *hlfile) {
 }
 
 HL_PRIM vbyte *hl_sys_hl_file() {
-	return (vbyte*)hl_file;
+	return hl_file!=NULL ? (vbyte*)hl_file : hl_sys_exe_path();
 }
 
 static void *reload_fun = NULL;

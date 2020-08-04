@@ -10,6 +10,7 @@ package sdl;
 	public var wheelDelta : Int;
 	public var state : WindowStateChange;
 	public var keyCode : Int;
+	public var scanCode : Int;
 	public var keyRepeat : Bool;
 	public var controller : Int;
 	public var value : Int;
@@ -39,13 +40,20 @@ package sdl;
 	var TouchDown	= 200;
 	var TouchUp		= 201;
 	var TouchMove	= 202;
+	var JoystickAxisMotion	= 300;
+	var JoystickBallMotion	= 301;
+	var JoystickHatMotion	= 302;
+	var JoystickButtonDown	= 303;
+	var JoystickButtonUp	= 304;
+	var JoystickAdded		= 305;
+	var JoystickRemoved		= 306;
 	//AppEvents
-	var AppTerminating = 400;
-	var LowMemory = 401;
+	var AppTerminating 		= 400;
+	var LowMemory 			= 401;
 	var WillEnterBackground = 402;
-	var DidEnterBackground = 403;
+	var DidEnterBackground 	= 403;
 	var WillEnterForeground = 404;
-	var DidEnterForeground = 405;
+	var DidEnterForeground 	= 405;
 }
 
 @:enum abstract WindowStateChange(Int) {

@@ -275,7 +275,7 @@ HL_PRIM void hl_track_set_depth( int d ) {
 HL_PRIM void hl_track_set_bits( int flags, bool thread ) {
 #	ifdef HL_TRACK_ENABLE
 	if( thread ) {
-	hl_thread_info *t = hl_get_thread();
+		hl_thread_info *t = hl_get_thread();
 		if( t ) t->flags = (t->flags & ~(HL_TRACK_MASK<<HL_TREAD_TRACK_SHIFT)) | ((flags & HL_TRACK_MASK) << HL_TREAD_TRACK_SHIFT);	
 	} else {
 		hl_track.flags = (hl_track.flags & ~HL_TRACK_MASK) | (flags & HL_TRACK_MASK);
