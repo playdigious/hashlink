@@ -110,7 +110,8 @@ typedef struct {
 	int button;
 	int wheelDelta;
 	ws_change state;
-	int keyCode;	int scanCode;
+	int keyCode;
+	int scanCode;
 	bool keyRepeat;
 	int controller;
 	int value;
@@ -201,7 +202,8 @@ HL_PRIM void HL_NAME(gl_options)( int major, int minor, int depth, int stencil, 
 HL_PRIM bool HL_NAME(hint_value)( vbyte* name, vbyte* value) {
 	return SDL_SetHint((char*)name, (char*)value) == SDL_TRUE;
 }
-static bool isInBackground = false;
+
+static bool isInBackground = false;
 HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
 	while (true) {
 		SDL_Event e;
@@ -240,11 +242,14 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
 //                break;
             case SDL_KEYDOWN:
                 event->type = KeyDown;
-                event->keyCode = e.key.keysym.sym;				event->scanCode = e.key.keysym.scancode;
-				event->keyRepeat = e.key.repeat != 0;                break;
+                event->keyCode = e.key.keysym.sym;
+				event->scanCode = e.key.keysym.scancode;
+				event->keyRepeat = e.key.repeat != 0;
+                break;
             case SDL_KEYUP:
                 event->type = KeyUp;
-                event->keyCode = e.key.keysym.sym;				event->scanCode = e.key.keysym.scancode;
+                event->keyCode = e.key.keysym.sym;
+				event->scanCode = e.key.keysym.scancode;
                 break;
             case SDL_SYSWMEVENT:
                     continue;
@@ -280,7 +285,9 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
 			event->button = e.button.button;
 			event->mouseX = e.button.x;
 			event->mouseY = e.motion.y;
-			break;*/		/*case SDL_FINGERDOWN:			event->type = TouchDown;
+			break;*/
+		/*case SDL_FINGERDOWN:
+			event->type = TouchDown;
 			event->mouseX = (int)(e.tfinger.x*100);
 			event->mouseY = (int)(e.tfinger.y*100);
 			event->fingerId = (int)e.tfinger.fingerId;
@@ -297,7 +304,8 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
 			event->mouseY = (int)(e.tfinger.y*100);
 			event->fingerId = (int)e.tfinger.fingerId;
 			break;*/
-		case SDL_MOUSEWHEEL:			event->type = MouseWheel;
+		case SDL_MOUSEWHEEL:
+			event->type = MouseWheel;
 			event->wheelDelta = e.wheel.y;
 #						if SDL_VERSION_ATLEAST(2,0,4)
 			if (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) event->wheelDelta *= -1;
@@ -531,7 +539,8 @@ HL_PRIM const char *HL_NAME(detect_keyboard_layout)() {
 	return "unknown";
 }
 
-#define _PLATFORM _ABSTRACT(platform)DEFINE_PRIM(_BOOL, init_once, _NO_ARG);
+#define _PLATFORM _ABSTRACT(platform)
+DEFINE_PRIM(_BOOL, init_once, _NO_ARG);
 DEFINE_PRIM(_VOID, gl_options, _I32 _I32 _I32 _I32 _I32 _I32);
 DEFINE_PRIM(_BOOL, event_loop, _DYN );
 DEFINE_PRIM(_VOID, quit, _NO_ARG);
@@ -545,18 +554,18 @@ DEFINE_PRIM(_BOOL, detect_win32, _NO_ARG);
 DEFINE_PRIM(_VOID, text_input, _BOOL);
 DEFINE_PRIM(_I32, set_relative_mouse_mode, _BOOL);
 DEFINE_PRIM(_BYTES, detect_keyboard_layout, _NO_ARG);
+DEFINE_PRIM(_BOOL, hint_value, _BYTES _BYTES);
 
 // Window
 
 #if defined(HL_IOS) || defined(HL_TVOS)
 extern SDL_Window* global_sdl_window;
 #endif
+
 struct { // screen size structure
 	int w;
 	int h;
 } screen;
-
-// Window
 
 HL_PRIM SDL_Window *HL_NAME(win_create_ex)(int x, int y, int width, int height, int sdlFlags) {
 	SDL_Window *w;
@@ -709,6 +718,7 @@ HL_PRIM double HL_NAME(win_get_opacity)(SDL_Window *win) {
 HL_PRIM bool HL_NAME(win_set_opacity)(SDL_Window *win, double opacity) {
 	return SDL_SetWindowOpacity(win, (float)opacity) == 0;
 }
+
 HL_PRIM void HL_NAME(win_resize)(SDL_Window *win, int mode) {
 	switch( mode ) {
 		case 0:
@@ -738,9 +748,9 @@ static bool fpsLock = true;
 #define MIN_DELAY_TIME (0.002f)
 #define MAX_DELAY_TIME (1.0f / desiredFPS)
 
-HL_PRIM void HL_NAME(lock_fps)(Uint32 wantedFPS) {
-	fpsLock = wantedFPS > 0;
-	desiredFPS = wantedFPS;
+HL_PRIM void HL_NAME(lock_fps)(int wantedFPS) {
+	desiredFPS = wantedFPS < 0 ? 0 : wantedFPS;
+	fpsLock = desiredFPS > 0;
 }
 
 HL_PRIM void HL_NAME(win_swap_window)(SDL_Window *win) {

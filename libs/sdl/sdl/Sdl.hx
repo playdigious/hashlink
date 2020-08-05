@@ -26,22 +26,12 @@ class Sdl {
 		return @:privateAccess hintValue(name.toUtf8(), value.toUtf8());
 	}
 
-	public static function getPlatform()
-	{
-		return get_platform();
-	}
-	
-	@:hlNative("sdl","get_platform")
-	static function get_platform() : hxd.System.Platform { return hxd.System.Platform.PC; }
-
-	public static function lockFPS(wantedFPS:Int = 30)
-	{
-		return lock_fps(wantedFPS > 0 ? wantedFPS : 0);
-		//native expects UNSIGNED int. No passing neg values
+	public static function getPlatform() {
+		return hxd.System.Platform.PC;
 	}
 
-	@:hlNative("sdl","lock_fps")
-	static function lock_fps(wantedFPS:Int) {};
+	public static function lockFps(wantedFPS:Int = 30) {
+	}
 
 	public static dynamic function onGlContextRetry() {
 		return false;
