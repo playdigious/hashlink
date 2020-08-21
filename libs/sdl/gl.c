@@ -101,7 +101,7 @@ HL_PRIM int HL_NAME(gl_get_error)() {
 	if(error != GL_NO_ERROR)
 		printf("gl get error : %d \n", error);
 	return error;
-#else 
+#else
 	return glGetError();
 #endif
 }
@@ -296,7 +296,7 @@ HL_PRIM int HL_NAME(gl_get_attrib_location)( vdynamic *p, vstring *name ) {
 	int loc = glGetAttribLocation(p->v.i, cname);
 	chkErr();
 	return loc;
-#else 
+#else
 	return glGetAttribLocation(p->v.i, cname);
 #endif
 }
@@ -408,10 +408,12 @@ HL_PRIM void HL_NAME(gl_tex_image2d_multisample)( int target, int samples, int i
 
 HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int imageSize, vbyte *image ) {
 	glCompressedTexImage2D(target,level,internalFormat,width,height,border,imageSize,image);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_compressed_tex_image3d)( int target, int level, int internalFormat, int width, int height, int depth, int border, int imageSize, vbyte *image ) {
 	glCompressedTexImage3D(target,level,internalFormat,width,height,depth,border,imageSize,image);
+	chkErr();
 }
 
 HL_PRIM void HL_NAME(gl_generate_mipmap)( int t ) {

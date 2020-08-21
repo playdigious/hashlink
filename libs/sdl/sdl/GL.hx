@@ -214,7 +214,7 @@ class GL {
 	}
 
 	@:hlNative("sdl","gl_tex_image2d")
-	public static function texImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, image : hl.Bytes, off : Int, len : Int ) {
+	public static function texImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, image : hl.Bytes/*, off : Int, len : Int*/ ) {
 	}
 
 	@:hlNative("sdl","gl_tex_image3d")
