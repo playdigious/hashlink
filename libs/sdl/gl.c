@@ -147,9 +147,21 @@ HL_PRIM vbyte *HL_NAME(gl_get_string)(int name) {
 #ifdef DBG_GL
 	vbyte* v = (vbyte*)glGetString(name);
 	chkErr();
+#	ifdef HL_MOBILE
+	return hl_copy_bytes(v,(int)strlen(v) + 1);
+#	else
 	return v;
+#	endif
 #else
-	return (vbyte*)glGetString(name);
+    vbyte* v = (vbyte*)glGetString(name);
+#	ifdef HL_MOBILE
+    return hl_copy_bytes(v,(int)strlen(v) + 1);
+	// workaround for string being "lost" between there and call scope
+	// original code was
+	// return (vbyte*)glGetString(name);
+#	else
+	return v;
+#	endif
 #endif
 }
 
@@ -395,7 +407,6 @@ HL_PRIM void HL_NAME(gl_tex_image2d)( int target, int level, int internalFormat,
 	chkErr();
 }
 
-
 HL_PRIM void HL_NAME(gl_tex_image3d)( int target, int level, int internalFormat, int width, int height, int depth, int border, int format, int type, vbyte *image ) {
 	glTexImage3D(target, level, internalFormat, width, height, depth, border, format, type, image);
 	chkErr();
@@ -567,12 +578,28 @@ HL_PRIM void HL_NAME(gl_buffer_data_size)( int target, int size, int param ) {
 }
 
 HL_PRIM void HL_NAME(gl_buffer_data)( int target, int size, vbyte *data, int param ) {
+#ifdef HL_MOBILE
+	void* ptr = glMapBufferRange(target, 0, size, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+	chkErr();
+	memcpy(ptr, data, size);
+	glUnmapBuffer(target);
+	chkErr();
+#else
 	glBufferData(target, size, data, param);
 	chkErr();
+#endif
 }
 
 HL_PRIM void HL_NAME(gl_buffer_sub_data)( int target, int offset, vbyte *data, int srcOffset, int srcLength ) {
+#ifdef HL_MOBILE
+	void* ptr = glMapBufferRange(target, offset, srcLength, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+	chkErr();
+	memcpy(ptr, data + srcOffset, srcLength);
+	glUnmapBuffer(target);
+	chkErr();
+#else
 	glBufferSubData(target, offset, srcLength, data + srcOffset);
+#endif
 	chkErr();
 }
 
