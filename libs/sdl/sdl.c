@@ -791,7 +791,7 @@ DEFINE_PRIM(TGL, win_get_glcontext, TWIN);
 DEFINE_PRIM(_BOOL, win_set_fullscreen, TWIN _I32);
 DEFINE_PRIM(_VOID, win_resize, TWIN _I32);
 DEFINE_PRIM(_VOID, win_set_title, TWIN _BYTES);
-DEFINE_PRIM(_VOID, lock_fps,_I32);
+DEFINE_PRIM(_VOID, lock_fps, _I32);
 DEFINE_PRIM(_VOID, win_set_position, TWIN _I32 _I32);
 DEFINE_PRIM(_VOID, win_get_position, TWIN _REF(_I32) _REF(_I32));
 DEFINE_PRIM(_VOID, win_set_size, TWIN _I32 _I32);

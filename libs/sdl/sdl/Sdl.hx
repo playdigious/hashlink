@@ -30,7 +30,7 @@ class Sdl {
 		return hxd.System.Platform.PC;
 	}
 
-	public static function lockFps(wantedFPS:Int = 30) {
+	public static function lockFps(wantedFPS:Int) {
 	}
 
 	public static dynamic function onGlContextRetry() {
