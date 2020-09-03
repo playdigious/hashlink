@@ -76,21 +76,24 @@ typedef uchar pchar;
 #define pstrlen	ustrlen
 #endif
 
-#if defined(__APPLE__)
-#include <TargetConditionals.h>
-#if TARGET_OS_IOS || TARGET_OS_TV
-#include <IOS_IO.h>
-#include <iOS_Utils.h>
-#endif
+#ifdef __APPLE__
+#	include <TargetConditionals.h>
 #endif
 
 #ifdef HL_MAC
 #	include <sys/syslimits.h>
 #	include <limits.h>
 #	include <mach-o/dyld.h>
-#endif#if defined(__ANDROID__)#include <Android_Utils.h>
-#include <SDL.h>
+#endif
 
+#if defined(HL_IOS) || defined(HL_TVOS)
+#	include <IOS_IO.h>
+#	include <iOS_Utils.h>
+#endif
+
+#ifdef HL_ANDROID
+#	include <Android_Utils.h>
+#	include <SDL.h>
 #endif
 
 #ifndef CLK_TCK
@@ -142,9 +145,9 @@ HL_PRIM vbyte *hl_sys_locale() {
 	wchar_t loc[LOCALE_NAME_MAX_LENGTH];
 	int len = GetUserDefaultLocaleName(loc,LOCALE_NAME_MAX_LENGTH);
 	return len == 0 ? NULL : hl_copy_bytes((vbyte*)loc,(len+1)*2);
-#elif TARGET_OS_TV || TARGET_OS_IOS
+#elif defined(HL_IOS) || defined(HL_TVOS)
 	return (vbyte*)getDeviceLanguageCode();
-#elif __ANDROID__
+#elif defined(HL_ANDROID)
 	return (vbyte *) hl_to_utf16(getLocaleLanguage());
 #elif defined(HL_CONSOLE)
 	return (vbyte*)sys_get_lang();
@@ -155,7 +158,7 @@ HL_PRIM vbyte *hl_sys_locale() {
 
 HL_PRIM void hl_sys_print( vbyte *msg ) {
 	hl_blocking(true);
-#if __ANDROID__
+#if defined(HL_ANDROID)
 	LOG_ANDROID_FMT("Print : %s", hl_to_utf8(msg));
 #elif defined(HL_XBO)
 	OutputDebugStringW((LPCWSTR)msg);
@@ -173,7 +176,7 @@ HL_PRIM void hl_sys_print( vbyte *msg ) {
 }
 
 HL_PRIM void hl_sys_exit( int code ) {
-#if __ANDROID__ //do not call exit() on Android, it is considered as a process interruption (crash)
+#if defined(HL_ANDROID) //do not call exit() on Android, it is considered as a process interruption (crash)
 	JNIEnv *env = getEnv();
 	struct jcallBundle sysExit = getClassStaticMethod(env, "com/playdigious/deadcells/mobile/Utils", "jniExit", "(I)V");
 	(*env)->CallStaticVoidMethod(env, sysExit.classCalled, sysExit.methID, code);
@@ -345,9 +348,9 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 }
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
-#if TARGET_OS_IOS || TARGET_OS_TV
+#if defined(HL_IOS) || defined(HL_TVOS)
 	return exists(path);
-#elif __ANDROID__
+#elif defined(HL_ANDROID)
 	pstat st;
 	if(stat((pchar*)getDocumentPath(path),&st) == 0)
 	{
@@ -361,7 +364,7 @@ HL_PRIM bool hl_sys_exists( vbyte *path ) {
 }
 
 HL_PRIM bool hl_sys_delete( vbyte *path ) {
-#if TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
+#if defined(HL_MOBILE)
 	return unlink((pchar*)getDocumentPath(path)) == 0;
 #else
 	return unlink((pchar*)path) == 0;
@@ -404,9 +407,9 @@ HL_PRIM bool hl_sys_is_dir( vbyte *path ) {
 HL_PRIM bool hl_sys_create_dir( vbyte *path, int mode ) {
 #if defined(HL_PS)
 	return false;
-#elif TARGET_OS_IOS || TARGET_OS_TV
+#elif defined(HL_IOS) || defined(HL_TVOS)
 	return createDir(path, mode) == 0;
-#elif __ANDROID__
+#elif defined(HL_ANDROID)
 	return mkdir((pchar*)getDocumentPath(path),mode) == 0;
 #else
 	return mkdir((pchar*)path,mode) == 0;
@@ -578,7 +581,7 @@ HL_PRIM vbyte *hl_sys_full_path( vbyte *path ) {
 	return (vbyte*)pstrdup(out,len);
 #elif defined(HL_PS)
 	return path;
-#elif defined(__ANDROID__)
+#elif defined(HL_ANDROID)
 	return getResourcePath(path);
 #else
 	pchar buf[PATH_MAX];

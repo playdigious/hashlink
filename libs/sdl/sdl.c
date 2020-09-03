@@ -133,7 +133,7 @@ HL_PRIM bool HL_NAME(init_once)() {
 	SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 #ifdef HL_MOBILE
 	SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
-#	ifdef HL_ANDROID
+#	if defined(HL_ANDROID) || defined(HL_TVOS)
 	SDL_SetHint(SDL_HINT_TV_REMOTE_AS_JOYSTICK, "0");
 #	endif
 	SDL_SetHint(SDL_HINT_GAMECONTROLLERCONFIG_FILE, "gamecontrollerdb.txt");
