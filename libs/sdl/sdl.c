@@ -814,7 +814,7 @@ HL_PRIM int HL_NAME(gctrl_count)() {
 
 #ifdef HL_ANDROID
 static const char* fmt_addMapping = "%s,%s,%s";
-static const char* defaultMapping = "a:b0,b:b1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,";
+static const char* defaultMapping = "a:b0,b:b1,x:b2,y:b3,back:b4,start:b6,leftstick:b7,rightstick:b8,leftshoulder:b9,rightshoulder:b10,dpup:b11,dpdown:b12,dpleft:b13,dpright:b14,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:a4,righttrigger:a5";
 #endif
 
 HL_PRIM SDL_GameController *HL_NAME(gctrl_open)(int idx) {
