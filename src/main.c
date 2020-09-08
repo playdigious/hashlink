@@ -50,6 +50,8 @@ typedef char pchar;
 #	include <limits.h>
 #endif
 
+#include <unistd.h>
+
 typedef struct {
 	hl_code *code;
 	hl_module *m;
@@ -58,7 +60,6 @@ typedef struct {
 	pchar *file;
 	int file_time;
 } main_context;
-
 
 
 // ----------------------------------------------------------------------------
@@ -123,13 +124,13 @@ static char *load_file(const pchar *file, int *fsize) {
 int embed_standalone(pchar *file, pchar *dest) {
 	int size;
 	char *data = load_file(file, &size);
-	if (data == NULL) 
+	if (data == NULL)
 		return 1;
 
 #if defined(HL_WIN)
 	static pchar path[MAX_PATH];
 	HANDLE h;
-	
+
 	if (GetModuleFileNameW(NULL, path, MAX_PATH) == 0) {
 		printf("Failed to find HL executable\n");
 		return 1;
@@ -182,7 +183,6 @@ hl_code *try_load_embedded_module() {
 
 // Code embedding end
 // ----------------------------------------------------------------------------
-
 
 
 static int pfiletime( pchar *file )	{
@@ -325,7 +325,7 @@ int main(int argc, pchar *argv[]) {
 		break;
 	}
 
-	if (standalone != NULL) 
+	if (standalone != NULL)
 		return embed_standalone(file,standalone);
 
 	hl_global_init();
@@ -415,4 +415,3 @@ int main(int argc, pchar *argv[]) {
 	hl_global_free();
 	return 0;
 }
-
