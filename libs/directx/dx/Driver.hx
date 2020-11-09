@@ -183,7 +183,7 @@ abstract DxBool(Int) {
 
 @:enum abstract LayoutClassification(Int) {
 	var PerVertexData = 0;
-	var PerInstanceData = 0;
+	var PerInstanceData = 1;
 }
 
 @:keep
@@ -277,6 +277,10 @@ class Texture2dDesc {
 	public var bind : ResourceBind;
 	public var access : ResourceAccess;
 	public var misc : ResourceMisc;
+	#if hlxbo
+	var esramOffset : Int;
+	var esramUsage : Int;
+	#end
 	public function new() {
 		mipLevels = arraySize = sampleCount = 1;
 	}
@@ -301,7 +305,7 @@ class Texture2dDesc {
 	var DecrSat = 5;
 	var Invert = 6;
 	var Incr = 7;
-	var Desc = 8;
+	var Decr = 8;
 }
 
 @:keep
@@ -309,17 +313,37 @@ class DepthStencilDesc {
 	public var depthEnable : DxBool;
 	public var depthWrite : DxBool;
 	public var depthFunc : ComparisonFunc;
+
 	public var stencilEnable : DxBool;
 	public var stencilReadMask : hl.UI8;
 	public var stencilWriteMask : hl.UI8;
+
 	public var frontFaceFail : StencilOp;
 	public var frontFaceDepthFail : StencilOp;
 	public var frontFacePass : StencilOp;
 	public var frontFaceFunc : ComparisonFunc;
+
 	public var backFaceFail : StencilOp;
 	public var backFaceDepthFail : StencilOp;
 	public var backFacePass : StencilOp;
 	public var backFaceFunc : ComparisonFunc;
+
+	#if hlxbo
+	public var backfaceEnable : DxBool;
+    public var depthBoundsEnable : DxBool;
+    public var colorWritesOnDepthFailEnable : DxBool;
+    public var colorWritesOnDepthPassDisable : DxBool;
+
+    public var stencilReadMaskBack : hl.UI8;
+    public var stencilWriteMaskBack : hl.UI8;
+
+    public var stencilTestRefValueFront : hl.UI8;
+    public var stencilTestRefValueBack : hl.UI8;
+
+    public var stencilOpRefValueFront : hl.UI8;
+    public var stencilOpRefValueBack : hl.UI8;
+	#end
+
 	public function new() {
 	}
 }
@@ -465,8 +489,21 @@ class Driver {
 
 	public static var fullScreen(get, set) : Bool;
 
+	/**
+		Setup an error handler instead of getting String exceptions:
+		The first parameter is the DirectX error code
+		The second parameter is the removed reason code if the first is DXGI_ERROR_DEVICE_REMOVED
+		The third parameter is the line in directx.cpp sources where was triggered the error.
+		Allocation methods will return null if an error handler is setup and does not raise exception.
+	**/
+	public static function setErrorHandler( f : Int -> Int -> Int -> Void ) {
+	}
+
 	public static function create( win : Window, format : Format, flags : DriverInitFlags = None, restrictLevel = 0 ) {
 		return dxCreate(@:privateAccess win.win, format, flags, restrictLevel);
+	}
+
+	public static function disposeDriver( driver : DriverInstance ) {
 	}
 
 	public static function resize( width : Int, height : Int, format : Format ) : Bool {
@@ -545,6 +582,12 @@ class Driver {
 	public static function drawIndexed( indexCount : Int, startIndex : Int, baseVertex : Int ) : Void {
 	}
 
+	public static function drawIndexedInstanced( indexCountPerInstance : Int, instanceCount : Int, startIndexLocation : Int, baseVertexLocation : Int, startInstanceLocation : Int ) {
+	}
+
+	public static function drawIndexedInstancedIndirect( buffer : Resource, offset : Int ) : Void {
+	}
+
 	public static function vsSetShader( shader : Shader ) : Void {
 	}
 
@@ -585,7 +628,7 @@ class Driver {
 		return null;
 	}
 
-	public static function omSetDepthStencilState( state : DepthStencilState ) : Void {
+	public static function omSetDepthStencilState( state : DepthStencilState, ref : Int ) : Void {
 	}
 
 	public static function clearDepthStencilView( view : DepthStencilView, depth : Null<Float>, stencil : Null<Int> ) {

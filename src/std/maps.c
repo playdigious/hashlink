@@ -66,6 +66,7 @@ static void hl_freelist_add_range( hl_free_list *f, int pos, int count ) {
 			return;
 		} else if( pos + count == f->head ) {
 			f->head -= count;
+			f->nbuckets += count;
 			return;
 		} else {
 			int cur_pos = f->head, cur_count = f->nbuckets;
@@ -83,6 +84,7 @@ static void hl_freelist_add_range( hl_free_list *f, int pos, int count ) {
 	}
 	if( b < f->buckets + f->head && b->pos == pos + count ) {
 		b->pos -= count;
+		b->count += count;
 		// merge
 		if( prev && prev->pos + prev->count == b->pos ) {
 			prev->count += b->count;
@@ -192,9 +194,23 @@ typedef struct {
 } hl_ho_value;
 
 static vdynamic *hl_hofilter( vdynamic *key ) {
-	// erase virtual (prevent mismatch once virtualized)
-	if( key && key->t->kind == HVIRTUAL )
-		key = hl_virtual_make_value((vvirtual*)key);
+	if( key )
+		switch( key->t->kind ) {
+		// erase virtual (prevent mismatch once virtualized)
+		case HVIRTUAL:
+			key = hl_virtual_make_value((vvirtual*)key);
+			break;
+		// store real pointer instead of dynamic wrapper
+		case HBYTES:
+		case HTYPE:
+		case HABSTRACT:
+		case HREF:
+		case HENUM:
+			key = (vdynamic*)key->v.ptr;
+			break;
+		default:
+			break;
+		}
 	return key;
 }
 

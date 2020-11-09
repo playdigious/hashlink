@@ -13,6 +13,7 @@ Release
 x64
 *.stackdump
 *.hdll
+*.so
 /src/_main*
 *.dylib
 *.o
@@ -28,6 +29,7 @@ ReleaseStatic
 /other/benchs/flashout.txt
 
 /bin*
+/build*
 /other/memory/*.dump
 /src/_std
 /src/hl
@@ -48,3 +50,10 @@ node_modules
 /other/debugger/package-lock.json
 /other/debugger/*.map
 /*.zip
+/*.tgz
+args.txt
+/other/benchs/hlc
+
+/.vs/
+/.dev
+/.vscode

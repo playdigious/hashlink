@@ -43,16 +43,13 @@ abstract Cursor(CursorPtr) {
 	public static function show( v : Bool ) {
 	}
 
+	@:hlNative("sdl", "is_cursor_visible")
+	public static function isVisible() : Bool {
+		return false;
+	}
+
 	@:hlNative("sdl", "set_cursor")
 	static function setCursor( k : CursorPtr ) {
-	}
-
-	static function createCursorFrom( surface : Surface, hotX : Int, hotY : Int ) : CursorPtr {
-		return null;
-	}
-
-	static function createSystemCursor( kind : CursorKind ) : CursorPtr {
-		return null;
 	}
 
 	static function freeCursor( ptr : CursorPtr ) {

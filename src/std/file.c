@@ -25,24 +25,38 @@
 #	include <posix/posix.h>
 #endif
 #ifdef HL_WIN
+#ifdef HL_WIN_DESKTOP
 #	include <windows.h>
+#	include <io.h>
+#	include <fcntl.h>
+#else
+#	include<xdk.h>
+#endif
 #	define fopen(name,mode) _wfopen(name,mode)
 #	define HL_UFOPEN
 #endif
 #ifdef __APPLE__
 #	include <TargetConditionals.h>
-#	if TARGET_OS_IOS || TARGET_OS_TV
-#   include <IOS_IO.h>
+#	if defined (HL_IOS) || defined (HL_TVOS)
+#   	include <IOS_IO.h>
 #   endif
 #endif
-#ifdef __ANDROID__
-#include <Android_Utils.h>
+#ifdef HL_ANDROID
+#	include <Android_Utils.h>
+#endif
+#ifdef HL_WIN_DESKTOP
+#	define SET_IS_STD(f,b) (f)->is_std = b
+#else
+#	define SET_IS_STD(f,b)
 #endif
 
 typedef struct _hl_fdesc hl_fdesc;
 struct _hl_fdesc {
 	void (*finalize)( hl_fdesc * );
 	FILE *f;
+#	ifdef HL_WIN_DESKTOP
+	bool is_std;
+#	endif
 };
 
 static void fdesc_finalize( hl_fdesc *f ) {
@@ -51,9 +65,9 @@ static void fdesc_finalize( hl_fdesc *f ) {
 
 HL_PRIM hl_fdesc *hl_file_open( vbyte *name, int mode, bool binary ) {
 #	ifdef HL_UFOPEN
-	static const uchar *MODES[] = { USTR("r"), USTR("w"), USTR("a"), NULL, USTR("rb"), USTR("wb"), USTR("ab") };
+	static const uchar *MODES[] = { USTR("r"), USTR("w"), USTR("a"), USTR("r+"), USTR("rb"), USTR("wb"), USTR("ab"), USTR("rb+") };
 	FILE *f = fopen((uchar*)name,MODES[mode|(binary?4:0)]);
-#	elif TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
+#	elif defined(HL_MOBILE)
 	static const char *MODES[] = { "r", "w", "a", NULL, "rb", "wb", "ab" };
     int m = mode | (binary?4:0);
     FILE *f = NULL;
@@ -63,7 +77,7 @@ HL_PRIM hl_fdesc *hl_file_open( vbyte *name, int mode, bool binary ) {
         f = fopen((char*)getResourcePath(name),MODES[m]);
     }
 #	else
-	static const char *MODES[] = { "r", "w", "a", NULL, "rb", "wb", "ab" };
+	static const char *MODES[] = { "r", "w", "a", "r+", "rb", "wb", "ab", "rb+" };
 	FILE *f = fopen((char*)name,MODES[mode|(binary?4:0)]);
 #	endif
 	hl_fdesc *fd;
@@ -71,6 +85,7 @@ HL_PRIM hl_fdesc *hl_file_open( vbyte *name, int mode, bool binary ) {
 	fd = (hl_fdesc*)hl_gc_alloc_finalizer(sizeof(hl_fdesc));
 	fd->finalize = fdesc_finalize;
 	fd->f = f;
+	SET_IS_STD(fd, false);
 	return fd;
 }
 
@@ -85,6 +100,21 @@ HL_PRIM int hl_file_write( hl_fdesc *f, vbyte *buf, int pos, int len ) {
 	int ret;
 	if( !f ) return -1;
 	hl_blocking(true);
+#	ifdef HL_WIN_DESKTOP
+	if( f->is_std ) {
+		// except utf8, handle the case where it's not \0 terminated
+		uchar *out = (uchar*)malloc((len+1)*2);
+		vbyte prev = buf[pos+len-1];
+		if( buf[pos+len] ) buf[pos+len-1] = 0;
+		int olen = hl_from_utf8(out,len,(const char*)(buf+pos));
+		buf[pos+len-1] = prev;
+		_setmode(fileno(f->f),_O_U8TEXT);
+		ret = _write(fileno(f->f),out,olen<<1);
+		_setmode(fileno(f->f),_O_TEXT);
+		if( ret > 0 ) ret = len;
+		free(out);
+	} else
+#	endif
 	ret = (int)fwrite(buf+pos,1,len,f->f);
 	hl_blocking(false);
 	return ret;
@@ -104,6 +134,15 @@ HL_PRIM bool hl_file_write_char( hl_fdesc *f, int c ) {
 	unsigned char cc = (unsigned char)c;
 	if( !f ) return false;
 	hl_blocking(true);
+#	ifdef HL_WIN_DESKTOP
+	if( f->is_std ) {
+		uchar wcc = cc;
+		_setmode(fileno(f->f),_O_U8TEXT);
+		ret = _write(fileno(f->f),&wcc,2);
+		_setmode(fileno(f->f),_O_TEXT);
+		if( ret > 0 ) ret = 1;
+	} else
+#	endif
 	ret = fwrite(&cc,1,1,f->f);
 	hl_blocking(false);
 	return ret == 1;
@@ -150,6 +189,7 @@ HL_PRIM bool hl_file_flush( hl_fdesc *f ) {
 		f = (hl_fdesc*)hl_gc_alloc_noptr(sizeof(hl_fdesc)); \
 		f->f = k; \
 		f->finalize = NULL; \
+		SET_IS_STD(f, true); \
 		return f; \
 	}
 
@@ -163,7 +203,7 @@ HL_PRIM vbyte *hl_file_contents( vbyte *name, int *size ) {
 	vbyte *content;
 #	ifdef HL_UFOPEN
 	FILE *f = fopen((uchar*)name,USTR("rb"));
-#	elif TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
+#	elif defined(HL_MOBILE)
 	FILE *f = fopen((char*)getDocumentPath(name),"rb");
 #	else
 	FILE *f = fopen((char*)name,"rb");
@@ -175,7 +215,9 @@ HL_PRIM vbyte *hl_file_contents( vbyte *name, int *size ) {
 	len = ftell(f);
 	if( size ) *size = len;
 	fseek(f,0,SEEK_SET);
+	hl_blocking(false);
 	content = (vbyte*)hl_gc_alloc_noptr(size ? len : len+1);
+	hl_blocking(true);
 	if( !size ) content[len] = 0; // final 0 for UTF8
 	while( len > 0 ) {
 		int d = (int)fread((char*)content + p,1,len,f);

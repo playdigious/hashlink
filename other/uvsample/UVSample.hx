@@ -48,6 +48,10 @@ class UVSample {
 			log("Client connected");
 			var s = tcp.accept();
 			s.readStart(function(bytes) {
+				if( bytes == null ) {
+					s.close();
+					return;
+				}
 				totR += bytes.length;
 				// write back
 				s.write(bytes, function(b) if( !b ) throw "Write failure");
@@ -60,9 +64,9 @@ class UVSample {
 
 			var numbers = [];
 			var client = new Tcp(loop);
-			log("Connecting...");
+			//log("Connecting...");
 			client.connect(host, port, function(b) {
-				log("Connected to server");
+				//log("Connected to server");
 
 
 				function send() {
@@ -87,8 +91,13 @@ class UVSample {
 						if( !numbers.remove(k) )
 							throw "!";
 					}
-					if( numbers.length == 0 )
-						sendBatch();
+					if( numbers.length == 0 ) {					
+						if( Std.random(10000) == 0 ) {
+							startClient();
+							client.close();							
+						} else							
+							sendBatch();
+					}
 				});
 
 			});
@@ -102,10 +111,18 @@ class UVSample {
 		log("Enter Loop");
 
 		var K = 0;
-		while( loop.run(NoWait) != 0 )
+		var maxRead = 1000000;
+		while( loop.run(NoWait) != 0 ) {
 			if( K++ % 10000 == 0 ) log("Read=" + totR);
 
+			if( totR > maxRead ) {
+				log("Total Read > " + maxRead);
+				break;
+			}
+		}
+
 		log("Done");
+		Sys.exit(0);
 	}
 
 }

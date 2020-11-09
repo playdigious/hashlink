@@ -38,6 +38,21 @@ HL_PRIM vbyte *hl_ftos( double d, int *len ) {
 	// don't use the last digit (eg 5.1 = 5.09999..996)
 	// also cut one more digit for some numbers (eg 86.57 and 85.18) <- to fix since we lose one PI digit
 	k = (int)usprintf(tmp,24,USTR("%.15g"),d);
+#	if defined(HL_WIN) && _MSC_VER <= 1800
+	// fix for window : 1e-5 is printed as 1e-005 whereas it's 1e-05 on other platforms
+	// note : this is VS2013 std bug, VS2015 works correctly
+	{
+		int i;
+		for(i=0;i<k;i++)
+			if( tmp[i] == 'e' ) {
+				if( tmp[i+1] == '+' || tmp[i+1] == '-' ) i++;
+				if( tmp[i+1] != '0' || tmp[i+2] != '0' ) break;
+				memmove(tmp+i+1,tmp+i+2,(k-(i+1))*2);
+				k--;
+				break;
+			}
+	}
+#	endif
 	*len = k;
 	return hl_copy_bytes((vbyte*)tmp,(k + 1) << 1);
 }
@@ -71,7 +86,7 @@ HL_PRIM int hl_utf8_length( const vbyte *s, int pos ) {
 	while( true ) {
 		unsigned char c = (unsigned)*s;
 		len++;
-		if( c < 0x7F ) {
+		if( c < 0x80 ) {
 			if( c == 0 ) {
 				len--;
 				break;
@@ -111,10 +126,10 @@ HL_PRIM int hl_from_utf8( uchar *out, int outLen, const char *str ) {
 		} else {
 			c2 = (unsigned)*str++;
 			c3 = (unsigned)*str++;
-			c = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | ((*str++) & 0x7F);
+			c = (((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | ((*str++) & 0x7F)) - 0x10000;
 			// surrogate pair
 			if( p++ == outLen ) break;
-			*out++ = (uchar)((c >> 10) + 0xD7C0);
+			*out++ = (uchar)((c >> 10) + 0xD800);
 			*out++ = (uchar)((c & 0x3FF) | 0xDC00);
 			continue;
 		}
@@ -127,14 +142,14 @@ HL_PRIM int hl_from_utf8( uchar *out, int outLen, const char *str ) {
 HL_PRIM uchar *hl_to_utf16( const char *str ) {
 	int len = hl_utf8_length((vbyte*)str,0);
 	uchar *out = (uchar*)hl_gc_alloc_noptr((len + 1) * sizeof(uchar));
-	hl_from_utf8(out,len+1,str);
+	hl_from_utf8(out,len,str);
 	return out;
 }
 
 HL_PRIM vbyte* hl_utf8_to_utf16( vbyte *str, int pos, int *size ) {
 	int ulen = hl_utf8_length(str, pos);
 	uchar *s = (uchar*)hl_gc_alloc_noptr((ulen + 1)*sizeof(uchar));
-	hl_from_utf8(s,ulen+1,(char*)(str+pos));
+	hl_from_utf8(s,ulen,(char*)(str+pos));
 	*size = ulen << 1;
 	return (vbyte*)s;
 }
@@ -169,7 +184,7 @@ HL_PRIM vbyte* hl_ucs2_lower( vbyte *str, int pos, int len ) {
 	for(i=0;i<len;i++) {
 		unsigned int c = *cstr++;
 		int up = c >> UL_BITS;
-		if( up < UMAX ) {
+		if( up < LMAX ) {
 			unsigned int c2 = LOWER[up][c&((1<<UL_BITS)-1)];
 			if( c2 != 0 ) *cout = (uchar)c2;
 		}
@@ -179,14 +194,15 @@ HL_PRIM vbyte* hl_ucs2_lower( vbyte *str, int pos, int len ) {
 	return (vbyte*)out;
 }
 
-HL_PRIM vbyte *hl_utf16_to_utf8( vbyte *str, int pos, int *size ) {
+HL_PRIM vbyte *hl_utf16_to_utf8( vbyte *str, int len, int *size ) {
 	vbyte *out;
-	uchar *c = (uchar*)(str + pos);
+	uchar *c = (uchar*)str;
+	uchar *end = len == 0 ? NULL : c + len;
 	int utf8bytes = 0;
 	int p = 0;
-	while( true ) {
+	while( c != end ) {
 		unsigned int v = (unsigned int)*c;
-		if( v == 0 ) break;
+		if( v == 0 && end == NULL ) break;
 		if( v < 0x80 )
 			utf8bytes++;
 		else if( v < 0x800 )
@@ -199,12 +215,12 @@ HL_PRIM vbyte *hl_utf16_to_utf8( vbyte *str, int pos, int *size ) {
 		c++;
 	}
 	out = hl_gc_alloc_noptr(utf8bytes + 1);
-	c = (uchar*)(str + pos);
-	while( true ) {
+	c = (uchar*)str;
+	while( c != end ) {
 		unsigned int v = (unsigned int)*c;
 		if( v < 0x80 ) {
 			out[p++] = (vbyte)v;
-			if( v == 0 ) break;
+			if( v == 0 && end == NULL ) break;
 		} else if( v < 0x800 ) {
 			out[p++] = (vbyte)(0xC0|(v>>6));
 			out[p++] = (vbyte)(0x80|(v&63));
@@ -230,40 +246,46 @@ HL_PRIM char *hl_to_utf8( const uchar *bytes ) {
 	return (char*)hl_utf16_to_utf8((vbyte*)bytes, 0, &size);
 }
 
+static void hl_buffer_hex( hl_buffer *b, int c ) {
+	static const uchar *hex = USTR("0123456789ABCDEF");
+	hl_buffer_char(b,'%');
+	hl_buffer_char(b,hex[c>>4]);
+	hl_buffer_char(b,hex[c&0xF]);
+}
+
 HL_PRIM vbyte *hl_url_encode( vbyte *str, int *len ) {
 	hl_buffer *b = hl_alloc_buffer();
 	uchar *cstr = (uchar*)str;
+	unsigned int sur;
 	while( true ) {
-		static const uchar *hex = USTR("0123456789ABCDEF");
 		unsigned int c = (unsigned)*cstr++;
 		if( c == 0 ) break;
 		if( (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' )
 			hl_buffer_char(b,(uchar)c);
 		else {
-			hl_buffer_char(b,'%');
 			if( c < 0x80 ) {
-				hl_buffer_char(b,hex[c>>4]);
-				hl_buffer_char(b,hex[c&0xF]);
+				hl_buffer_hex(b,c);
 			} else if( c < 0x800 ) {
-				unsigned int c1 = 0xC0|(c>>6);
-				unsigned int c2 = 0x80|(c&63);
-				hl_buffer_char(b,hex[c1>>4]);
-				hl_buffer_char(b,hex[c1&0xF]);
-				hl_buffer_char(b,'%');
-				hl_buffer_char(b,hex[c2>>4]);
-				hl_buffer_char(b,hex[c2&0xF]);
+				hl_buffer_hex(b, 0xC0|(c>>6));
+				hl_buffer_hex(b, 0x80|(c&63));
+			} else if( c >= 0xD800 && c <= 0xDBFF ) {
+				sur = (unsigned)*cstr;
+				if( sur >= 0xDC00 && sur < 0xDFFF ) {
+					cstr++;
+					c = ((((int)c - 0xD800) << 10) | ((int)sur - 0xDC00)) + 0x10000;
+					hl_buffer_hex(b, 0xF0|(c>>18));
+					hl_buffer_hex(b, 0x80|((c >> 12) & 63));
+					hl_buffer_hex(b, 0x80|((c >> 6) & 63));
+					hl_buffer_hex(b, 0x80|(c & 63));
+				} else {
+					hl_buffer_hex(b, 0xE0|(c>>12));
+					hl_buffer_hex(b, 0x80|((c>>6)&63));
+					hl_buffer_hex(b, 0x80|(c&63));
+				}
 			} else {
-				unsigned int c1 = 0xE0|(c>>12);
-				unsigned int c2 = 0x80|((c>>6)&63);
-				unsigned int c3 = 0x80|(c&63);
-				hl_buffer_char(b,hex[c1>>4]);
-				hl_buffer_char(b,hex[c1&0xF]);
-				hl_buffer_char(b,'%');
-				hl_buffer_char(b,hex[c2>>4]);
-				hl_buffer_char(b,hex[c2&0xF]);
-				hl_buffer_char(b,'%');
-				hl_buffer_char(b,hex[c3>>4]);
-				hl_buffer_char(b,hex[c3&0xF]);
+				hl_buffer_hex(b, 0xE0|(c>>12));
+				hl_buffer_hex(b, 0x80|((c>>6)&63));
+				hl_buffer_hex(b, 0x80|(c&63));
 			}
 		}
 	}
@@ -325,8 +347,22 @@ HL_PRIM vbyte *hl_url_decode( vbyte *str, int *len ) {
 				p3 = decode_hex(&cstr);
 				if( p3 < 0 ) break;
 				c = ((p1 & 0x1F) << 12) | ((p2 & 0x7F) << 6) | (p3 & 0x7F);
-			} else
-				hl_error("TODO");
+			} else {
+				int k;
+				uchar p2, p3, p4;
+				if( *cstr++ != '%' ) break;
+				p2 = decode_hex(&cstr);
+				if( p2 < 0 ) break;
+				if( *cstr++ != '%' ) break;
+				p3 = decode_hex(&cstr);
+				if( p3 < 0 ) break;
+				if( *cstr++ != '%' ) break;
+				p4 = decode_hex(&cstr);
+				if( p4 < 0 ) break;
+				k = (((p1 & 0x0F) << 18) | ((p2 & 0x7F) << 12) | ((p3 & 0x7F) << 6) | (p4 & 0x7F)) - 0x10000;
+				hl_buffer_char(b,(uchar)((k >> 10) + 0xD800));
+				c = (uchar)((k & 0x3FF) | 0xDC00);
+			}
 		}
 		hl_buffer_char(b,c);
 	}

@@ -23,23 +23,41 @@
 #define HL_H
 
 /**
-	Detailed documentation can be found here: 
+	Detailed documentation can be found here:
 	https://github.com/HaxeFoundation/hashlink/wiki/
 **/
 
-#define HL_VERSION	0x140
+#define HL_VERSION	0x010A00
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #	define HL_WIN
+#	ifndef _DURANGO
+#		define HL_WIN_DESKTOP
+#	endif
 #endif
 
 #if defined(__APPLE__) || defined(__MACH__) || defined(macintosh)
-#	define HL_MAC
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS
+#define HL_IOS
+#elif TARGET_OS_TV
+#define HL_TVOS
+#elif TARGET_OS_MAC
+#define HL_MAC
+#endif
+#endif
+
+#ifdef __ANDROID__
+#	define HL_ANDROID
 #endif
 
 #if defined(linux) || defined(__linux__)
 #	define HL_LINUX
 #	define _GNU_SOURCE
+#endif
+
+#if defined(HL_IOS) || defined(HL_ANDROID) || defined(HL_TVOS)
+#	define HL_MOBILE
 #endif
 
 #ifdef __ORBIS__
@@ -50,7 +68,11 @@
 #	define HL_NX
 #endif
 
-#if defined(HL_PS) || defined(HL_NX)
+#ifdef _DURANGO
+#	define HL_XBO
+#endif
+
+#if defined(HL_PS) || defined(HL_NX) || defined(HL_XBO)
 #	define HL_CONSOLE
 #endif
 
@@ -103,6 +125,24 @@
 
 #ifdef _DEBUG
 #	define HL_DEBUG
+#endif
+
+#ifndef HL_CONSOLE
+#	define HL_TRACK_ENABLE
+#endif
+
+#ifndef HL_NO_THREADS
+#	define HL_THREADS
+#	ifdef HL_VCC
+#		define HL_THREAD_VAR __declspec( thread )
+#		define HL_THREAD_STATIC_VAR HL_THREAD_VAR static
+#	else
+#		define HL_THREAD_VAR __thread
+#		define HL_THREAD_STATIC_VAR static HL_THREAD_VAR
+#	endif
+#else
+#	define HL_THREAD_VAR
+#	define HL_THREAD_STATIC_VAR static
 #endif
 
 #include <stddef.h>
@@ -168,7 +208,13 @@ typedef unsigned long long uint64;
 // -------------- UNICODE -----------------------------------
 
 #if defined(HL_WIN) && !defined(HL_LLVM)
-#	include <windows.h>
+#if defined(HL_WIN_DESKTOP) && !defined(HL_MINGW)
+#	include <Windows.h>
+#elif defined(HL_WIN_DESKTOP) && defined(HL_MINGW)
+#	include<windows.h>
+#else
+#	include <xdk.h>
+#endif
 #	include <wchar.h>
 typedef wchar_t	uchar;
 #	define USTR(str)	L##str
@@ -177,19 +223,25 @@ typedef wchar_t	uchar;
 #	define uprintf		wprintf
 #	define ustrlen		wcslen
 #	define ustrdup		_wcsdup
-#	define uvsprintf	wvsprintf
+HL_API int uvszprintf( uchar *out, int out_size, const uchar *fmt, va_list arglist );
 #	define utod(s,end)	wcstod(s,end)
 #	define utoi(s,end)	wcstol(s,end,10)
 #	define ucmp(a,b)	wcscmp(a,b)
 #	define utostr(out,size,str) wcstombs(out,str,size)
+#elif defined(HL_MAC)
+typedef uint16_t uchar;
+#	undef USTR
+#	define USTR(str)	u##str
 #else
 #	include <stdarg.h>
-// #	include <uchar.h>
+#if defined(HL_IOS) || defined(HL_TVOS) || defined(HL_MAC)
 #include <stddef.h>
 #include <stdint.h>
-
 typedef uint16_t char16_t;
 typedef uint32_t char32_t;
+#else
+#	include <uchar.h>
+#endif
 typedef char16_t uchar;
 #	undef USTR
 #	define USTR(str)	u##str
@@ -204,15 +256,19 @@ HL_API int utoi( const uchar *str, uchar **end );
 HL_API int ucmp( const uchar *a, const uchar *b );
 HL_API int utostr( char *out, int out_size, const uchar *str );
 HL_API int usprintf( uchar *out, int out_size, const uchar *fmt, ... );
-HL_API int uvsprintf( uchar *out, const uchar *fmt, va_list arglist );
+HL_API int uvszprintf( uchar *out, int out_size, const uchar *fmt, va_list arglist );
 HL_API void uprintf( const uchar *fmt, const uchar *str );
 C_FUNCTION_END
 #endif
 
 #if defined(HL_VCC)
 #	define hl_debug_break()	if( IsDebuggerPresent() ) __debugbreak()
-#elif defined(HL_PS)
+#elif defined(HL_PS) && defined(_DEBUG)
 #	define hl_debug_break()	__debugbreak()
+#elif defined(HL_NX)
+C_FUNCTION_BEGIN
+HL_API void hl_debug_break( void );
+C_FUNCTION_END
 #elif defined(HL_LINUX) && defined(__i386__)
 #	ifdef HL_64
 #	define hl_debug_break() \
@@ -231,6 +287,14 @@ C_FUNCTION_END
 #	endif
 #else
 #	define hl_debug_break()
+#endif
+
+#ifdef HL_VCC
+#	define HL_NO_RETURN(f) __declspec(noreturn) f
+#	define HL_UNREACHABLE
+#else
+#	define HL_NO_RETURN(f) f __attribute__((noreturn))
+#	define HL_UNREACHABLE __builtin_unreachable()
 #endif
 
 // ---- TYPES -------------------------------------------
@@ -256,8 +320,10 @@ typedef enum {
 	HABSTRACT=17,
 	HENUM	= 18,
 	HNULL	= 19,
+	HMETHOD = 20,
+	HSTRUCT	= 21,
 	// ---------
-	HLAST	= 20,
+	HLAST	= 22,
 	_H_FORCE_INT = 0x7FFFFFFF
 } hl_type_kind;
 
@@ -365,6 +431,7 @@ HL_API int hl_pad_struct( int size, hl_type *t );
 
 HL_API hl_runtime_obj *hl_get_obj_rt( hl_type *ot );
 HL_API hl_runtime_obj *hl_get_obj_proto( hl_type *ot );
+HL_API void hl_flush_proto( hl_type *ot );
 HL_API void hl_init_enum( hl_type *et, hl_module_context *m );
 
 /* -------------------- VALUES ------------------------------ */
@@ -514,13 +581,14 @@ HL_API hl_obj_field *hl_obj_field_fetch( hl_type *t, int fid );
 HL_API int hl_hash( vbyte *name );
 HL_API int hl_hash_utf8( const char *str ); // no cache
 HL_API int hl_hash_gen( const uchar *name, bool cache_name );
-HL_API const uchar *hl_field_name( int hash );
+HL_API vbyte *hl_field_name( int hash );
 
-#define hl_error(msg)	hl_error_msg(USTR(msg))
-HL_API void hl_error_msg( const uchar *msg, ... );
+#define hl_error(msg, ...) hl_throw(hl_alloc_strbytes(USTR(msg), ## __VA_ARGS__))
+
+HL_API vdynamic *hl_alloc_strbytes( const uchar *msg, ... );
 HL_API void hl_assert( void );
-HL_API void hl_throw( vdynamic *v );
-HL_API void hl_rethrow( vdynamic *v );
+HL_API HL_NO_RETURN( void hl_throw( vdynamic *v ) );
+HL_API HL_NO_RETURN( void hl_rethrow( vdynamic *v ) );
 HL_API void hl_setup_longjump( void *j );
 HL_API void hl_setup_exception( void *resolve_symbol, void *capture_stack );
 HL_API void hl_dump_stack( void );
@@ -545,7 +613,7 @@ HL_API double hl_dyn_castd( void *data, hl_type *t );
 #define hl_invalid_comparison 0xAABBCCDD
 HL_API int hl_dyn_compare( vdynamic *a, vdynamic *b );
 HL_API vdynamic *hl_make_dyn( void *data, hl_type *t );
-HL_API void hl_write_dyn( void *data, hl_type *t, vdynamic *v );
+HL_API void hl_write_dyn( void *data, hl_type *t, vdynamic *v, bool is_tmp );
 
 HL_API void hl_dyn_seti( vdynamic *d, int hfield, hl_type *t, int value );
 HL_API void hl_dyn_setp( vdynamic *d, int hfield, hl_type *t, void *ptr );
@@ -574,20 +642,48 @@ HL_API vclosure *hl_make_fun_wrapper( vclosure *c, hl_type *to );
 HL_API void *hl_wrapper_call( void *value, void **args, vdynamic *ret );
 HL_API void *hl_dyn_call_obj( vdynamic *obj, hl_type *ft, int hfield, void **args, vdynamic *ret );
 HL_API vdynamic *hl_dyn_call( vclosure *c, vdynamic **args, int nargs );
+HL_API vdynamic *hl_dyn_call_safe( vclosure *c, vdynamic **args, int nargs, bool *isException );
+
+/*
+	These macros should be only used when the closure `cl` has been type checked beforehand
+	so you are sure it's of the used typed. Otherwise use hl_dyn_call
+*/
+#define hl_call0(ret,cl) \
+	(cl->hasValue ? ((ret(*)(vdynamic*))cl->fun)(cl->value) : ((ret(*)())cl->fun)()) 
+#define hl_call1(ret,cl,t,v) \
+	(cl->hasValue ? ((ret(*)(vdynamic*,t))cl->fun)(cl->value,v) : ((ret(*)(t))cl->fun)(v))
+#define hl_call2(ret,cl,t1,v1,t2,v2) \
+	(cl->hasValue ? ((ret(*)(vdynamic*,t1,t2))cl->fun)(cl->value,v1,v2) : ((ret(*)(t1,t2))cl->fun)(v1,v2))
+#define hl_call3(ret,cl,t1,v1,t2,v2,t3,v3) \
+	(cl->hasValue ? ((ret(*)(vdynamic*,t1,t2,t3))cl->fun)(cl->value,v1,v2,v3) : ((ret(*)(t1,t2,t3))cl->fun)(v1,v2,v3))
+#define hl_call4(ret,cl,t1,v1,t2,v2,t3,v3,t4,v4) \
+	(cl->hasValue ? ((ret(*)(vdynamic*,t1,t2,t3,t4))cl->fun)(cl->value,v1,v2,v3,v4) : ((ret(*)(t1,t2,t3,t4))cl->fun)(v1,v2,v3,v4))
 
 // ----------------------- THREADS --------------------------------------------------
 
 struct _hl_thread;
+struct _hl_mutex;
+struct _hl_tls;
 typedef struct _hl_thread hl_thread;
-typedef int_val hl_thread_registers;
+typedef struct _hl_mutex hl_mutex;
+typedef struct _hl_tls hl_tls;
 
 HL_API hl_thread *hl_thread_start( void *callback, void *param, bool withGC );
 HL_API hl_thread *hl_thread_current( void );
-HL_API bool hl_thread_pause( hl_thread *t, bool pause );
-HL_API int hl_thread_context_size();
-HL_API int hl_thread_context_index( const char *name );
-HL_API bool hl_thread_get_context( hl_thread *t, hl_thread_registers *regs );
-HL_API bool hl_thread_set_context( hl_thread *t, hl_thread_registers *regs );
+HL_API void hl_thread_yield(void);
+HL_API void hl_register_thread( void *stack_top );
+HL_API void hl_unregister_thread( void );
+
+HL_API hl_mutex *hl_mutex_alloc( bool gc_thread );
+HL_API void hl_mutex_acquire( hl_mutex *l );
+HL_API bool hl_mutex_try_acquire( hl_mutex *l );
+HL_API void hl_mutex_release( hl_mutex *l );
+HL_API void hl_mutex_free( hl_mutex *l );
+
+HL_API hl_tls *hl_tls_alloc( bool gc_value );
+HL_API void hl_tls_set( hl_tls *l, void *value );
+HL_API void *hl_tls_get( hl_tls *l );
+HL_API void hl_tls_free( hl_tls *l );
 
 // ----------------------- ALLOC --------------------------------------------------
 
@@ -601,7 +697,6 @@ HL_API bool hl_thread_set_context( hl_thread *t, hl_thread_registers *regs );
 
 HL_API void *hl_gc_alloc_gen( hl_type *t, int size, int flags );
 HL_API void hl_add_root( void *ptr );
-HL_API void hl_pop_root( void );
 HL_API void hl_remove_root( void *ptr );
 HL_API void hl_gc_major( void );
 HL_API bool hl_is_gc_ptr( void *ptr );
@@ -622,7 +717,7 @@ HL_API void *hl_malloc( hl_alloc *a, int size );
 HL_API void *hl_zalloc( hl_alloc *a, int size );
 HL_API void hl_free( hl_alloc *a );
 
-HL_API void hl_global_init( void *stack_top );
+HL_API void hl_global_init( void );
 HL_API void hl_global_free( void );
 
 HL_API void *hl_alloc_executable_memory( int size );
@@ -642,6 +737,7 @@ HL_API int hl_buffer_length( hl_buffer *b );
 HL_API uchar *hl_buffer_content( hl_buffer *b, int *len );
 HL_API uchar *hl_to_string( vdynamic *v );
 HL_API const uchar *hl_type_str( hl_type *t );
+HL_API void hl_throw_buffer( hl_buffer *b );
 
 // ----------------------- FFI ------------------------------------------------------
 
@@ -693,11 +789,29 @@ typedef struct {
 #		define DEFINE_PRIM_WITH_NAME(t,name,args,realName)
 #	endif
 #elif defined(LIBHL_STATIC)
-#define	HL_PRIM
+#	ifdef __cplusplus
+#		define	HL_PRIM				extern "C"
+#	else
+#		define	HL_PRIM
+#	endif
 #define DEFINE_PRIM_WITH_NAME(t,name,args,realName)
 #else
-#define	HL_PRIM						EXPORT
-#define DEFINE_PRIM_WITH_NAME		_DEFINE_PRIM_WITH_NAME
+#	ifdef __cplusplus
+#		define	HL_PRIM				extern "C" EXPORT
+#	else
+#		define	HL_PRIM				EXPORT
+#	endif
+#	define DEFINE_PRIM_WITH_NAME	_DEFINE_PRIM_WITH_NAME
+#endif
+
+#if defined(HL_GCC) && !defined(HL_CONSOLE)
+#	ifdef HL_CLANG
+#		define HL_NO_OPT	__attribute__ ((optnone))
+#	else
+#		define HL_NO_OPT	__attribute__((optimize("-O0")))
+#	endif
+#else
+#	define HL_NO_OPT
 #endif
 
 // -------------- EXTRA ------------------------------------
@@ -711,17 +825,72 @@ HL_API void *hl_fatal_error( const char *msg, const char *file, int line );
 HL_API void hl_fatal_fmt( const char *file, int line, const char *fmt, ...);
 HL_API void hl_sys_init(void **args, int nargs, void *hlfile);
 HL_API void hl_setup_callbacks(void *sc, void *gw);
+HL_API void hl_setup_reload_check( void *freload, void *param );
 
 #include <setjmp.h>
 typedef struct _hl_trap_ctx hl_trap_ctx;
 struct _hl_trap_ctx {
 	jmp_buf buf;
 	hl_trap_ctx *prev;
+	vdynamic *tcheck;
 };
-HL_API hl_trap_ctx *hl_current_trap;
-HL_API vdynamic *hl_current_exc;
-#define hl_trap(ctx,r,label) { ctx.prev = hl_current_trap; hl_current_trap = &ctx; if( setjmp(ctx.buf) ) { r = hl_current_exc; goto label; } }
-#define hl_endtrap(ctx)	hl_current_trap = ctx.prev
+#define hl_trap(ctx,r,label) { hl_thread_info *__tinf = hl_get_thread(); ctx.tcheck = NULL; ctx.prev = __tinf->trap_current; __tinf->trap_current = &ctx; if( setjmp(ctx.buf) ) { r = __tinf->exc_value; goto label; } }
+#define hl_endtrap(ctx)	hl_get_thread()->trap_current = ctx.prev
+
+#define HL_EXC_MAX_STACK	0x100
+#define HL_EXC_RETHROW		1
+#define HL_EXC_CATCH_ALL	2
+#define HL_EXC_IS_THROW		4
+#define HL_THREAD_INVISIBLE	16
+#define HL_TREAD_TRACK_SHIFT 5
+
+#define HL_TRACK_ALLOC		1
+#define HL_TRACK_CAST		2
+#define HL_TRACK_DYNFIELD	4
+#define HL_TRACK_DYNCALL	8
+#define HL_TRACK_MASK		(HL_TRACK_ALLOC | HL_TRACK_CAST | HL_TRACK_DYNFIELD | HL_TRACK_DYNCALL)
+
+typedef struct {
+	int thread_id;
+	// gc vars
+	volatile int gc_blocking;
+	void *stack_top;
+	void *stack_cur;
+	// exception handling
+	hl_trap_ctx *trap_current;
+	hl_trap_ctx *trap_uncaught;
+	vclosure *exc_handler;
+	vdynamic *exc_value;
+	int flags;
+	int exc_stack_count;
+	// extra
+	jmp_buf gc_regs;
+	void *exc_stack_trace[HL_EXC_MAX_STACK];
+} hl_thread_info;
+
+HL_API hl_thread_info *hl_get_thread();
+
+#ifdef HL_TRACK_ENABLE
+
+typedef struct {
+	int flags;
+	void (*on_alloc)(hl_type *,int,int,void*);
+	void (*on_cast)(hl_type *, hl_type*);
+	void (*on_dynfield)( vdynamic *, int );
+	void (*on_dyncall)( vdynamic *, int );
+} hl_track_info;
+
+#define hl_is_tracking(flag) ((hl_track.flags&(flag)) && (hl_get_thread()->flags & (flag<<HL_TREAD_TRACK_SHIFT)))
+#define hl_track_call(flag,call) if( hl_is_tracking(flag) ) hl_track.call
+
+HL_API hl_track_info hl_track;
+
+#else 
+
+#define hl_is_tracking(_) false
+#define hl_track_call(a,b)
+
+#endif
 
 C_FUNCTION_END
 
