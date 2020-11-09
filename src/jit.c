@@ -4160,9 +4160,9 @@ void *hl_jit_code( jit_ctx *ctx, hl_module *m, int *codesize, hl_debug_infos **d
 	*codesize = size;
 	*debug = ctx->debug;
 	if( !call_jit_c2hl ) {
-	call_jit_c2hl = code + ctx->c2hl;
-	call_jit_hl2c = code + ctx->hl2c;
-	hl_setup_callbacks(callback_c2hl, get_wrapper);
+		call_jit_c2hl = code + ctx->c2hl;
+		call_jit_hl2c = code + ctx->hl2c;
+		hl_setup_callbacks(callback_c2hl, get_wrapper);
 #		ifdef JIT_CUSTOM_LONGJUMP
 		hl_setup_longjump(code + ctx->longjump);
 #		endif

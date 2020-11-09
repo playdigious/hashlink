@@ -37,18 +37,19 @@
 #endif
 #ifdef __APPLE__
 #	include <TargetConditionals.h>
-#	if TARGET_OS_IOS || TARGET_OS_TV
-#   include <IOS_IO.h>
+#	if defined (HL_IOS) || defined (HL_TVOS)
+#   	include <IOS_IO.h>
 #   endif
 #endif
-#ifdef __ANDROID__
-#include <Android_Utils.h>
+#ifdef HL_ANDROID
+#	include <Android_Utils.h>
 #endif
 #ifdef HL_WIN_DESKTOP
 #	define SET_IS_STD(f,b) (f)->is_std = b
 #else
 #	define SET_IS_STD(f,b)
 #endif
+
 typedef struct _hl_fdesc hl_fdesc;
 struct _hl_fdesc {
 	void (*finalize)( hl_fdesc * );
@@ -66,7 +67,7 @@ HL_PRIM hl_fdesc *hl_file_open( vbyte *name, int mode, bool binary ) {
 #	ifdef HL_UFOPEN
 	static const uchar *MODES[] = { USTR("r"), USTR("w"), USTR("a"), USTR("r+"), USTR("rb"), USTR("wb"), USTR("ab"), USTR("rb+") };
 	FILE *f = fopen((uchar*)name,MODES[mode|(binary?4:0)]);
-#	elif TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
+#	elif defined(HL_MOBILE)
 	static const char *MODES[] = { "r", "w", "a", NULL, "rb", "wb", "ab" };
     int m = mode | (binary?4:0);
     FILE *f = NULL;
@@ -202,7 +203,7 @@ HL_PRIM vbyte *hl_file_contents( vbyte *name, int *size ) {
 	vbyte *content;
 #	ifdef HL_UFOPEN
 	FILE *f = fopen((uchar*)name,USTR("rb"));
-#	elif TARGET_OS_IOS || TARGET_OS_TV || __ANDROID__
+#	elif defined(HL_MOBILE)
 	FILE *f = fopen((char*)getDocumentPath(name),"rb");
 #	else
 	FILE *f = fopen((char*)name,"rb");

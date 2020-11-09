@@ -621,7 +621,7 @@ alloc_var:
 #	endif
 	if( p->bmp ) {
 		int bid = p->next_block;
-#			ifdef GC_DEBUG
+#		ifdef GC_DEBUG
 		int i;
 		for(i=0;i<nblocks;i++) {
 			if( (p->bmp[bid>>3]&(1<<(bid&7))) != 0 ) hl_fatal("Alloc on marked block");
@@ -1269,8 +1269,8 @@ vdynamic *hl_alloc_obj( hl_type *t ) {
 	if( t->kind == HSTRUCT ) {
 		o = (vobj*)hl_gc_alloc_gen(t, size, (rt->hasPtr ? MEM_KIND_RAW : MEM_KIND_NOPTR) | MEM_ZERO);
 	} else {
-	o = (vobj*)hl_gc_alloc_gen(t, size, (rt->hasPtr ? MEM_KIND_DYNAMIC : MEM_KIND_NOPTR) | MEM_ZERO);
-	o->t = t;
+		o = (vobj*)hl_gc_alloc_gen(t, size, (rt->hasPtr ? MEM_KIND_DYNAMIC : MEM_KIND_NOPTR) | MEM_ZERO);
+		o->t = t;
 	}
 	for(i=0;i<rt->nbindings;i++) {
 		hl_runtime_binding *b = rt->bindings + i;

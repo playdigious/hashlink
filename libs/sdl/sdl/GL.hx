@@ -214,11 +214,7 @@ class GL {
 	}
 
 	@:hlNative("sdl","gl_tex_image2d")
-	public static function texImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, image : hl.Bytes, off : Int, len : Int ) {
-	}
-
-	@:hlNative("sdl","gl_compressed_tex_image2d")
-	public static function compressedTexImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, size : Int, data : hl.Bytes, off : Int, len : Int ) {
+	public static function texImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, image : hl.Bytes/*, off : Int, len : Int*/ ) {
 	}
 
 	@:hlNative("sdl","gl_tex_image3d")
@@ -227,6 +223,14 @@ class GL {
 
 	@:hlNative("sdl","gl_tex_image2d_multisample")
 	public static function texImage2DMultisample( target : Int, internalFormat : Int, samples : Int, width : Int, height : Int, fixedsamplelocations : Bool ) {
+	}
+
+	@:hlNative("sdl","gl_compressed_tex_image2d")
+	public static function compressedTexImage2D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, border : Int, imageSize : Int, image : hl.Bytes ) {
+	}
+
+	@:hlNative("sdl","gl_compressed_tex_image3d")
+	public static function compressedTexImage3D( target : Int, level : Int, internalFormat : Int, width : Int, height : Int, depth : Int, border : Int, imageSize : Int, image : hl.Bytes ) {
 	}
 
 	public static function generateMipmap( t : Int ) {
@@ -268,7 +272,7 @@ class GL {
 
 	public static function drawBuffers( n : Int, buffers : hl.Bytes ) {
 	}
-	
+
 	@:hlNative("sdl","gl_check_framebuffer_status")
 	public static function checkFramebufferStatus( buffer : Int ) {
 		return 0;

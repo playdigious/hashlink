@@ -271,12 +271,12 @@ HL_PRIM vbyte *hl_url_encode( vbyte *str, int *len ) {
 			} else if( c >= 0xD800 && c <= 0xDBFF ) {
 				sur = (unsigned)*cstr;
 				if( sur >= 0xDC00 && sur < 0xDFFF ) {
-				cstr++;
-				c = ((((int)c - 0xD800) << 10) | ((int)sur - 0xDC00)) + 0x10000;
-				hl_buffer_hex(b, 0xF0|(c>>18));
-				hl_buffer_hex(b, 0x80|((c >> 12) & 63));
-				hl_buffer_hex(b, 0x80|((c >> 6) & 63));
-				hl_buffer_hex(b, 0x80|(c & 63));
+					cstr++;
+					c = ((((int)c - 0xD800) << 10) | ((int)sur - 0xDC00)) + 0x10000;
+					hl_buffer_hex(b, 0xF0|(c>>18));
+					hl_buffer_hex(b, 0x80|((c >> 12) & 63));
+					hl_buffer_hex(b, 0x80|((c >> 6) & 63));
+					hl_buffer_hex(b, 0x80|(c & 63));
 				} else {
 					hl_buffer_hex(b, 0xE0|(c>>12));
 					hl_buffer_hex(b, 0x80|((c>>6)&63));

@@ -101,7 +101,7 @@ HL_PRIM int HL_NAME(gl_get_error)() {
 	if(error != GL_NO_ERROR)
 		printf("gl get error : %d \n", error);
 	return error;
-#else 
+#else
 	return glGetError();
 #endif
 }
@@ -147,9 +147,21 @@ HL_PRIM vbyte *HL_NAME(gl_get_string)(int name) {
 #ifdef DBG_GL
 	vbyte* v = (vbyte*)glGetString(name);
 	chkErr();
+#	ifdef HL_MOBILE
+	return hl_copy_bytes(v,(int)strlen(v) + 1);
+#	else
 	return v;
+#	endif
 #else
-	return (vbyte*)glGetString(name);
+    vbyte* v = (vbyte*)glGetString(name);
+#	ifdef HL_MOBILE
+    return hl_copy_bytes(v,(int)strlen(v) + 1);
+	// workaround for string being "lost" between there and call scope
+	// original code was
+	// return (vbyte*)glGetString(name);
+#	else
+	return v;
+#	endif
 #endif
 }
 
@@ -296,7 +308,7 @@ HL_PRIM int HL_NAME(gl_get_attrib_location)( vdynamic *p, vstring *name ) {
 	int loc = glGetAttribLocation(p->v.i, cname);
 	chkErr();
 	return loc;
-#else 
+#else
 	return glGetAttribLocation(p->v.i, cname);
 #endif
 }
@@ -395,14 +407,6 @@ HL_PRIM void HL_NAME(gl_tex_image2d)( int target, int level, int internalFormat,
 	chkErr();
 }
 
-HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int size, vbyte *data ) {
-#if defined(HL_IOS) || defined (HL_TVOS) || defined (HL_MAC) || defined(HL_ANDROID)
-	//printf("gl_compressed_tex_image2d 0x%x,%d,0x%x,%d,%d,%d,0x%x ptr=0x%x\n",target,level,internalFormat,width,height,border,size, data);
-	glCompressedTexImage2D(target, level, internalFormat, width, height, border, size, data);
-	chkErr();
-#endif
-}
-
 HL_PRIM void HL_NAME(gl_tex_image3d)( int target, int level, int internalFormat, int width, int height, int depth, int border, int format, int type, vbyte *image ) {
 	glTexImage3D(target, level, internalFormat, width, height, depth, border, format, type, image);
 	chkErr();
@@ -410,6 +414,16 @@ HL_PRIM void HL_NAME(gl_tex_image3d)( int target, int level, int internalFormat,
 
 HL_PRIM void HL_NAME(gl_tex_image2d_multisample)( int target, int samples, int internalFormat, int width, int height, bool fixedsamplelocations) {
 	glTexImage2DMultisample(target, samples, internalFormat, width, height, fixedsamplelocations);
+	chkErr();
+}
+
+HL_PRIM void HL_NAME(gl_compressed_tex_image2d)( int target, int level, int internalFormat, int width, int height, int border, int imageSize, vbyte *image ) {
+	glCompressedTexImage2D(target,level,internalFormat,width,height,border,imageSize,image);
+	chkErr();
+}
+
+HL_PRIM void HL_NAME(gl_compressed_tex_image3d)( int target, int level, int internalFormat, int width, int height, int depth, int border, int imageSize, vbyte *image ) {
+	glCompressedTexImage3D(target,level,internalFormat,width,height,depth,border,imageSize,image);
 	chkErr();
 }
 
@@ -564,12 +578,28 @@ HL_PRIM void HL_NAME(gl_buffer_data_size)( int target, int size, int param ) {
 }
 
 HL_PRIM void HL_NAME(gl_buffer_data)( int target, int size, vbyte *data, int param ) {
+#ifdef HL_MOBILE
+	void* ptr = glMapBufferRange(target, 0, size, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+	chkErr();
+	memcpy(ptr, data, size);
+	glUnmapBuffer(target);
+	chkErr();
+#else
 	glBufferData(target, size, data, param);
 	chkErr();
+#endif
 }
 
 HL_PRIM void HL_NAME(gl_buffer_sub_data)( int target, int offset, vbyte *data, int srcOffset, int srcLength ) {
+#ifdef HL_MOBILE
+	void* ptr = glMapBufferRange(target, offset, srcLength, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+	chkErr();
+	memcpy(ptr, data + srcOffset, srcLength);
+	glUnmapBuffer(target);
+	chkErr();
+#else
 	glBufferSubData(target, offset, srcLength, data + srcOffset);
+#endif
 	chkErr();
 }
 
@@ -811,10 +841,11 @@ DEFINE_PRIM(_VOID,gl_active_texture,_I32);
 DEFINE_PRIM(_VOID,gl_bind_texture,_I32 _NULL(_I32));
 DEFINE_PRIM(_VOID,gl_tex_parameteri,_I32 _I32 _I32);
 DEFINE_PRIM(_VOID,gl_tex_parameterf,_I32 _I32 _F32);
-DEFINE_PRIM(_VOID,gl_tex_image2d,_I32 _I32 _I32 _I32 _I32 _I32 _I32 _I32 _BYTES _I32 _I32);
-DEFINE_PRIM(_VOID,gl_compressed_tex_image2d,_I32 _I32 _I32 _I32 _I32 _I32 _I32 _BYTES _I32 _I32);
+DEFINE_PRIM(_VOID,gl_tex_image2d,_I32 _I32 _I32 _I32 _I32 _I32 _I32 _I32 _BYTES);
 DEFINE_PRIM(_VOID,gl_tex_image3d,_I32 _I32 _I32 _I32 _I32 _I32 _I32 _I32 _I32 _BYTES);
 DEFINE_PRIM(_VOID,gl_tex_image2d_multisample,_I32 _I32 _I32 _I32 _I32 _BOOL);
+DEFINE_PRIM(_VOID,gl_compressed_tex_image2d,_I32 _I32 _I32 _I32 _I32 _I32 _I32 _BYTES);
+DEFINE_PRIM(_VOID,gl_compressed_tex_image3d,_I32 _I32 _I32 _I32 _I32 _I32 _I32 _I32 _BYTES);
 DEFINE_PRIM(_VOID,gl_generate_mipmap,_I32);
 DEFINE_PRIM(_VOID,gl_delete_texture,_NULL(_I32));
 DEFINE_PRIM(_VOID,gl_blit_framebuffer,_I32 _I32 _I32 _I32 _I32 _I32 _I32 _I32 _I32 _I32);

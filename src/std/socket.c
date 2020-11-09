@@ -221,7 +221,7 @@ HL_PRIM vbyte *hl_host_reverse( int ip ) {
 	hl_blocking(true);
 #	if defined(HL_WIN) || defined(HL_MAC) || defined(HL_IOS) || defined(HL_TVOS) || defined(HL_CYGWIN) || defined(HL_CONSOLE)
 	h = gethostbyaddr((char *)&ip,4,AF_INET);
-#	elif defined(__ANDROID__)
+#	elif defined(HL_ANDROID)
 	hl_error("hl_host_reverse() not available for this platform");
 #	else
 	struct hostent htmp;
