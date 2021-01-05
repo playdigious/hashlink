@@ -89,7 +89,7 @@ typedef uchar pchar;
 #	include <mach-o/dyld.h>
 #endif
 #if __ANDROID__
-#include <Android_Utils.h>
+#include <android_utils.h>
 #endif
 
 #ifndef CLK_TCK
@@ -144,7 +144,7 @@ HL_PRIM vbyte *hl_sys_locale() {
 #elif TARGET_OS_TV || TARGET_OS_IOS
 	return (vbyte*)getDeviceLanguageCode();
 #elif __ANDROID__
-	return (vbyte *) hl_to_utf16(getLocaleLanguage());
+	return (vbyte *) hl_to_utf16(android_utils_getlocale());
 #else
 	return (vbyte*)setlocale(LC_ALL,NULL);
 #endif
@@ -320,19 +320,8 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 }
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
-#if TARGET_OS_IOS || TARGET_OS_TV
-	return exists(path);
-#elif __ANDROID__
-	pstat st;
-	if(stat((pchar*)getDocumentPath(path),&st) == 0)
-	{
-		return true;
-	}
-	return stat((pchar*)getResourcePath(path),&st) == 0;
-#else
 	pstat st;
 	return stat((pchar*)path,&st) == 0;
-#endif
 }
 
 HL_PRIM bool hl_sys_delete( vbyte *path ) {
@@ -373,15 +362,7 @@ HL_PRIM bool hl_sys_is_dir( vbyte *path ) {
 }
 
 HL_PRIM bool hl_sys_create_dir( vbyte *path, int mode ) {
-#if defined(HL_PS)
-	return false;
-#elif TARGET_OS_IOS || TARGET_OS_TV
-	return createDir(path, mode) == 0;
-#elif __ANDROID__
-	return mkdir((pchar*)getDocumentPath(path),mode) == 0;
-#else
 	return mkdir((pchar*)path,mode) == 0;
-#endif
 }
 
 HL_PRIM bool hl_sys_remove_dir( vbyte *path ) {
@@ -547,10 +528,6 @@ HL_PRIM vbyte *hl_sys_full_path( vbyte *path ) {
 		last = i;
 	}
 	return (vbyte*)pstrdup(out,len);
-#elif defined(HL_PS)
-	return path;
-#elif defined(__ANDROID__)
-	return getResourcePath(path);
 #else
 	pchar buf[PATH_MAX];
 	if( realpath((pchar*)path,buf) == NULL )
