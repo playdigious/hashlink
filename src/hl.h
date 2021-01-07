@@ -213,12 +213,10 @@ typedef wchar_t	uchar;
 #if defined(HL_IOS) || defined(HL_TVOS) || defined(HL_MAC)
 #include <stddef.h>
 #include <stdint.h>
-typedef uint16_t char16_t;
-typedef uint32_t char32_t;
 #else
 #	include <uchar.h>
 #endif
-typedef char16_t uchar;
+typedef uint16_t uchar;
 #	undef USTR
 #	define USTR(str)	u##str
 #endif

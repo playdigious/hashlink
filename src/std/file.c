@@ -35,9 +35,6 @@
 #endif
 #ifdef __APPLE__
 #	include <TargetConditionals.h>
-#	if TARGET_OS_IOS || TARGET_OS_TV
-#   include <IOS_IO.h>
-#   endif
 #endif
 #ifdef __ANDROID__
 #include <android_utils.h>
