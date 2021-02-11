@@ -237,12 +237,10 @@ typedef uint16_t uchar;
 #if defined(HL_IOS) || defined(HL_TVOS) || defined(HL_MAC)
 #include <stddef.h>
 #include <stdint.h>
-typedef uint16_t char16_t;
-typedef uint32_t char32_t;
 #else
 #	include <uchar.h>
 #endif
-typedef char16_t uchar;
+typedef uint16_t uchar;
 #	undef USTR
 #	define USTR(str)	u##str
 #endif
@@ -649,7 +647,7 @@ HL_API vdynamic *hl_dyn_call_safe( vclosure *c, vdynamic **args, int nargs, bool
 	so you are sure it's of the used typed. Otherwise use hl_dyn_call
 */
 #define hl_call0(ret,cl) \
-	(cl->hasValue ? ((ret(*)(vdynamic*))cl->fun)(cl->value) : ((ret(*)())cl->fun)()) 
+	(cl->hasValue ? ((ret(*)(vdynamic*))cl->fun)(cl->value) : ((ret(*)())cl->fun)())
 #define hl_call1(ret,cl,t,v) \
 	(cl->hasValue ? ((ret(*)(vdynamic*,t))cl->fun)(cl->value,v) : ((ret(*)(t))cl->fun)(v))
 #define hl_call2(ret,cl,t1,v1,t2,v2) \
@@ -885,7 +883,7 @@ typedef struct {
 
 HL_API hl_track_info hl_track;
 
-#else 
+#else
 
 #define hl_is_tracking(_) false
 #define hl_track_call(a,b)
