@@ -42,7 +42,7 @@
 #   endif
 #endif
 #ifdef HL_ANDROID
-#	include <Android_Utils.h>
+#	include <AndroidUtils.h>
 #endif
 #ifdef HL_WIN_DESKTOP
 #	define SET_IS_STD(f,b) (f)->is_std = b
