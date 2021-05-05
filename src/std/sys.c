@@ -86,13 +86,9 @@ typedef uchar pchar;
 #	include <mach-o/dyld.h>
 #endif
 
-#if defined(HL_IOS) || defined(HL_TVOS)
-#	include <IOS_IO.h>
-#	include <iOS_Utils.h>
-#endif
-
 #ifdef HL_ANDROID
 #	include <AndroidUtils.h>
+#	include <android_utils.h>
 #	include <SDL.h>
 #endif
 
@@ -145,10 +141,6 @@ HL_PRIM vbyte *hl_sys_locale() {
 	wchar_t loc[LOCALE_NAME_MAX_LENGTH];
 	int len = GetUserDefaultLocaleName(loc,LOCALE_NAME_MAX_LENGTH);
 	return len == 0 ? NULL : hl_copy_bytes((vbyte*)loc,(len+1)*2);
-#elif defined(HL_IOS) || defined(HL_TVOS)
-	return (vbyte*)getDeviceLanguageCode();
-#elif defined(HL_ANDROID)
-	return (vbyte *) hl_to_utf16(getLocaleLanguage());
 #elif defined(HL_CONSOLE)
 	return (vbyte*)sys_get_lang();
 #else
@@ -348,27 +340,12 @@ HL_PRIM int hl_sys_command( vbyte *cmd ) {
 }
 
 HL_PRIM bool hl_sys_exists( vbyte *path ) {
-#if defined(HL_IOS) || defined(HL_TVOS)
-	return exists(path);
-#elif defined(HL_ANDROID)
-	pstat st;
-	if(stat((pchar*)getDocumentPath(path),&st) == 0)
-	{
-		return true;
-	}
-	return stat((pchar*)getResourcePath(path),&st) == 0;
-#else
 	pstat st;
 	return stat((pchar*)path,&st) == 0;
-#endif
 }
 
 HL_PRIM bool hl_sys_delete( vbyte *path ) {
-#if defined(HL_MOBILE)
-	return unlink((pchar*)getDocumentPath(path)) == 0;
-#else
 	return unlink((pchar*)path) == 0;
-#endif
 }
 
 HL_PRIM bool hl_sys_rename( vbyte *path, vbyte *newname ) {
@@ -407,10 +384,6 @@ HL_PRIM bool hl_sys_is_dir( vbyte *path ) {
 HL_PRIM bool hl_sys_create_dir( vbyte *path, int mode ) {
 #if defined(HL_PS)
 	return false;
-#elif defined(HL_IOS) || defined(HL_TVOS)
-	return createDir(path, mode) == 0;
-#elif defined(HL_ANDROID)
-	return mkdir((pchar*)getDocumentPath(path),mode) == 0;
 #else
 	return mkdir((pchar*)path,mode) == 0;
 #endif
@@ -581,8 +554,6 @@ HL_PRIM vbyte *hl_sys_full_path( vbyte *path ) {
 	return (vbyte*)pstrdup(out,len);
 #elif defined(HL_PS)
 	return path;
-#elif defined(HL_ANDROID)
-	return getResourcePath(path);
 #else
 	pchar buf[PATH_MAX];
 	if( realpath((pchar*)path,buf) == NULL )

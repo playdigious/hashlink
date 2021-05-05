@@ -273,10 +273,10 @@ class GL {
 	public static function drawBuffers( n : Int, buffers : hl.Bytes ) {
 	}
 
-	@:hlNative("sdl","gl_check_framebuffer_status")
+	/*@:hlNative("sdl","gl_check_framebuffer_status")
 	public static function checkFramebufferStatus( buffer : Int ) {
 		return 0;
-	}
+	}*/
 
 	// renderbuffer
 

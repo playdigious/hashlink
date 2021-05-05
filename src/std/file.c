@@ -35,15 +35,6 @@
 #	define fopen(name,mode) _wfopen(name,mode)
 #	define HL_UFOPEN
 #endif
-#ifdef __APPLE__
-#	include <TargetConditionals.h>
-#	if defined (HL_IOS) || defined (HL_TVOS)
-#   	include <IOS_IO.h>
-#   endif
-#endif
-#ifdef HL_ANDROID
-#	include <AndroidUtils.h>
-#endif
 #ifdef HL_WIN_DESKTOP
 #	define SET_IS_STD(f,b) (f)->is_std = b
 #else
@@ -67,15 +58,6 @@ HL_PRIM hl_fdesc *hl_file_open( vbyte *name, int mode, bool binary ) {
 #	ifdef HL_UFOPEN
 	static const uchar *MODES[] = { USTR("r"), USTR("w"), USTR("a"), USTR("r+"), USTR("rb"), USTR("wb"), USTR("ab"), USTR("rb+") };
 	FILE *f = fopen((uchar*)name,MODES[mode|(binary?4:0)]);
-#	elif defined(HL_MOBILE)
-	static const char *MODES[] = { "r", "w", "a", NULL, "rb", "wb", "ab" };
-    int m = mode | (binary?4:0);
-    FILE *f = NULL;
-    if (m==1 || m>=5){
-        f = fopen((char*)getDocumentPath(name),MODES[m]);
-    }else{
-        f = fopen((char*)getResourcePath(name),MODES[m]);
-    }
 #	else
 	static const char *MODES[] = { "r", "w", "a", "r+", "rb", "wb", "ab", "rb+" };
 	FILE *f = fopen((char*)name,MODES[mode|(binary?4:0)]);
@@ -203,8 +185,6 @@ HL_PRIM vbyte *hl_file_contents( vbyte *name, int *size ) {
 	vbyte *content;
 #	ifdef HL_UFOPEN
 	FILE *f = fopen((uchar*)name,USTR("rb"));
-#	elif defined(HL_MOBILE)
-	FILE *f = fopen((char*)getDocumentPath(name),"rb");
 #	else
 	FILE *f = fopen((char*)name,"rb");
 #	endif
