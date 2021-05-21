@@ -35,6 +35,9 @@
 #	define fopen(name,mode) _wfopen(name,mode)
 #	define HL_UFOPEN
 #endif
+#ifdef __APPLE__
+#	include <TargetConditionals.h>
+#endif
 #ifdef HL_WIN_DESKTOP
 #	define SET_IS_STD(f,b) (f)->is_std = b
 #else
