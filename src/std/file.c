@@ -36,9 +36,6 @@
 #ifdef __APPLE__
 #	include <TargetConditionals.h>
 #endif
-#ifdef __ANDROID__
-#include <android_utils.h>
-#endif
 
 typedef struct _hl_fdesc hl_fdesc;
 struct _hl_fdesc {

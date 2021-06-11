@@ -20,9 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <hlc.h>
-#include <SDL_main.h>
 
-#if defined(HL_MOBILE) && defined(sdl__Sdl__val)
+#if defined(HL_MOBILE) /*&& defined(sdl__Sdl__val)*/
 #   include <SDL_main.h>
 #endif
 
