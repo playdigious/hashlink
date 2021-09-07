@@ -240,6 +240,7 @@ static bool read_profile_data( profile_reader *r, void *ptr, int size ) {
 	return true;
 }
 
+#ifndef HL_MOBILE
 static void profile_dump() {
 	if( !data.first_record ) return;
 
@@ -331,6 +332,7 @@ void hl_profile_end() {
 	data.stopLoop = true;
 	while( data.stopLoop ) {};
 }
+#endif
 
 static void profile_event( int code, vbyte *ptr, int dataLen ) {
 	switch( code ) {
@@ -362,7 +364,9 @@ static void profile_event( int code, vbyte *ptr, int dataLen ) {
 		data.profiling_pause--;
 		break;
 	case -6:
+		#ifndef HL_MOBILE
 		profile_dump();
+		#endif
 		break;
 	case -7:
 		{
