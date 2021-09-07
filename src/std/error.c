@@ -33,7 +33,11 @@ HL_PRIM void *hl_fatal_error( const char *msg, const char *file, int line ) {
     HWND consoleWnd = GetConsoleWindow();
     DWORD pid;
     GetWindowThreadProcessId(consoleWnd, &pid);
-    if( consoleWnd == NULL || GetActiveWindow() != NULL || GetCurrentProcessId() == pid ) MessageBoxA(NULL,msg,"Fatal Error", MB_OK | MB_ICONERROR);
+    if( consoleWnd == NULL || GetActiveWindow() != NULL || GetCurrentProcessId() == pid ) {
+		char buf[256];
+		sprintf(buf,"%s\n\n%s(%d)",msg,file,line);
+		MessageBoxA(NULL,buf,"Fatal Error", MB_OK | MB_ICONERROR);
+	}
 #	endif
 	printf("%s(%d) : FATAL ERROR : %s\n",file,line,msg);
 	hl_blocking(false);
@@ -106,6 +110,11 @@ HL_PRIM void hl_throw( vdynamic *v ) {
 	HL_UNREACHABLE;
 }
 
+HL_PRIM void hl_null_access() {
+	hl_error("Null access");
+	HL_UNREACHABLE;
+}
+
 HL_PRIM void hl_throw_buffer( hl_buffer *b ) {
 	vdynamic *d = hl_alloc_dynamic(&hlt_bytes);	
 	d->v.ptr = hl_buffer_content(b,NULL);
@@ -128,25 +137,33 @@ HL_PRIM void hl_dump_stack() {
 		}
 		uprintf(USTR("%s\n"),str);
 	}
+	fflush(stdout);
 }
 
 HL_PRIM varray *hl_exception_stack() {
 	hl_thread_info *t = hl_get_thread();
 	varray *a = hl_alloc_array(&hlt_bytes, t->exc_stack_count);
-	int i;
+	int i, pos = 0;
 	for(i=0;i<t->exc_stack_count;i++) {
 		void *addr = t->exc_stack_trace[i];
 		uchar sym[512];
 		int size = 512;
 		uchar *str = resolve_symbol_func(addr, sym, &size);
-		if( str == NULL ) {
-			int iaddr = (int)(int_val)addr;
-			str = sym;
-			size = usprintf(str,512,USTR("@0x%X"),iaddr);
-		}
-		hl_aptr(a,vbyte*)[i] = hl_copy_bytes((vbyte*)str,sizeof(uchar)*(size+1));
+		if( str == NULL ) continue;
+		hl_aptr(a,vbyte*)[pos++] = hl_copy_bytes((vbyte*)str,sizeof(uchar)*(size+1));
 	}
+	a->size = pos;
 	return a;
+}
+
+HL_PRIM int hl_exception_stack_raw( varray *arr ) {
+	hl_thread_info *t = hl_get_thread();
+	if( arr ) memcpy(hl_aptr(arr,void*), t->exc_stack_trace, t->exc_stack_count*sizeof(void*));
+	return t->exc_stack_count;
+}
+
+HL_PRIM int hl_call_stack_raw( varray *arr ) {
+	return capture_stack_func(hl_aptr(arr,void*), arr->size);
 }
 
 HL_PRIM void hl_rethrow( vdynamic *v ) {
@@ -204,6 +221,10 @@ static void _sigtrap_handler(int signum) {
 }
 #endif
 
+#ifdef HL_MAC
+	extern bool is_debugger_attached(void);
+#endif
+
 HL_PRIM bool hl_detect_debugger() {
 #	if defined(HL_WIN)
 	return (bool)IsDebuggerPresent();
@@ -214,6 +235,8 @@ HL_PRIM bool hl_detect_debugger() {
 		raise(SIGTRAP);
 	}
 	return (bool)debugger_present;
+#	elif defined(HL_MAC)
+	return is_debugger_attached();
 #	else
 	return false;
 #	endif
@@ -233,6 +256,8 @@ HL_PRIM HL_NO_OPT void hl_assert() {
 #define _SYMBOL _ABSTRACT(hl_symbol)
 
 DEFINE_PRIM(_ARR,exception_stack,_NO_ARG);
+DEFINE_PRIM(_I32,exception_stack_raw,_ARR);
+DEFINE_PRIM(_I32,call_stack_raw,_ARR);
 DEFINE_PRIM(_VOID,set_error_handler,_FUN(_VOID,_DYN));
 DEFINE_PRIM(_VOID,breakpoint,_NO_ARG);
 DEFINE_PRIM(_BYTES,resolve_symbol, _SYMBOL _BYTES _REF(_I32));

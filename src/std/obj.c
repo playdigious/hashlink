@@ -308,7 +308,8 @@ HL_API hl_runtime_obj *hl_get_obj_proto( hl_type *ot ) {
 			hl_obj_proto *p = o->proto + i;
 			if( p->pindex >= 0 ) fptr[p->pindex] = m->functions_ptrs[p->findex];
 		}
-	}
+	} else
+		ot->vobj_proto = (void*)1;
 
 	t->methods = (void**)hl_malloc(alloc, sizeof(void*) * t->nmethods);
 	if( p ) memcpy(t->methods,p->methods,p->nmethods * sizeof(void*));
@@ -325,6 +326,19 @@ HL_API hl_runtime_obj *hl_get_obj_proto( hl_type *ot ) {
 		} else
 			method_index = i;
 		t->methods[method_index] = m->functions_ptrs[pr->findex];
+	}
+
+	// interfaces
+	t->ninterfaces = 0;
+	for(i=0;i<o->nfields;i++) {
+		if( o->fields[i].hashed_name == 0 )
+			t->ninterfaces++;
+	}
+	t->interfaces = (int*)hl_malloc(alloc,sizeof(int) * t->ninterfaces);
+	t->ninterfaces = 0;
+	for(i=0;i<o->nfields;i++) {
+		if( o->fields[i].hashed_name == 0 )
+			t->interfaces[t->ninterfaces++] = i;
 	}
 
 	// bindings
@@ -392,7 +406,7 @@ HL_API void hl_flush_proto( hl_type *ot ) {
 	hl_type_obj *o = ot->obj;
 	hl_runtime_obj *rt = ot->obj->rt;
 	hl_module_context *m = o->m;
-	if( !rt ) return;
+	if( !rt || !ot->vobj_proto ) return;
 	for(i=0;i<o->nbindings;i++) {
 		hl_runtime_binding *b = rt->bindings + i;
 		int mid = o->bindings[(i<<1)|1];
@@ -502,6 +516,24 @@ vvirtual *hl_to_virtual( hl_type *vt, vdynamic *obj ) {
 	case HOBJ:
 		{
 			int i;
+			void **interface_address = NULL;
+			{
+				hl_runtime_obj *rt = obj->t->obj->rt;
+				while( rt ) {
+					for(i=0;i<rt->ninterfaces;i++) {
+						if( rt->t->obj->fields[rt->interfaces[i]].t == vt ) {
+							int start = rt->parent ? rt->parent->nfields : 0;
+							interface_address = (void**)((char*)obj + rt->fields_indexes[rt->interfaces[i]+start]);
+							break;
+						}
+					}
+					rt = rt->parent;
+				}
+			}
+			if( interface_address ) {
+				v = (vvirtual*)*interface_address;
+				if( v ) return v;
+			}
 			v = (vvirtual*)hl_gc_alloc(vt, sizeof(vvirtual) + sizeof(void*)*vt->virt->nfields);
 			v->t = vt;
 			v->value = obj;
@@ -524,6 +556,8 @@ vvirtual *hl_to_virtual( hl_type *vt, vdynamic *obj ) {
 				} else
 					hl_vfields(v)[i] = f == NULL || !hl_same_type(f->t,vt->virt->fields[i].t) ? NULL : (char*)obj + f->field_index;
 			}
+			if( interface_address )
+				*interface_address = v;
 		}
 		break;
 	case HDYNOBJ:
@@ -587,8 +621,8 @@ static void hl_dynobj_remap_virtuals( vdynobj *o, hl_field_lookup *f, int_val ad
 			for(i=0;i<v->t->virt->nfields;i++)
 				if( hl_vfields(v)[i] && hl_is_ptr(v->t->virt->fields[i].t) == is_ptr )
 					((char**)hl_vfields(v))[i] += address_offset;
-		if( vf && hl_same_type(vf->t,f->t) )
-			hl_vfields(v)[vf->field_index] = hl_dynobj_field(o, f);
+		if( vf )
+			hl_vfields(v)[vf->field_index] = hl_same_type(vf->t,f->t) ? hl_dynobj_field(o, f) : NULL;
 		v = v->next;
 	}
 }
@@ -1077,6 +1111,10 @@ HL_PRIM varray *hl_obj_fields( vdynamic *obj ) {
 			while( true ) {
 				for(i=0;i<tobj->nfields;i++) {
 					hl_obj_field *f = tobj->fields + i;
+					if( !*f->name ) {
+						a->size--;
+						continue;
+					}
 					hl_aptr(a,vbyte*)[p++] =  (vbyte*)f->name;
 				}
 				if( tobj->super == NULL ) break;
