@@ -13,7 +13,6 @@
 #endif
 
 #if defined (HL_IOS) || defined(HL_TVOS)
-<<<<<<< HEAD
 #    include <OpenGLES/ES3/gl.h>
 #    include <OpenGLES/ES3/glext.h>
 #    include <SDL2/SDL_syswm.h>
@@ -27,10 +26,6 @@ extern SDL_Window* global_sdl_window;
 #   include <SDL_joystick.h>
 
 extern SDL_Window *Android_Window;
-=======
-#	include <OpenGLES/ES3/gl.h>
-#	include <OpenGLES/ES3/glext.h>
->>>>>>> upstream/master
 #endif
 
 #ifndef SDL_MAJOR_VERSION

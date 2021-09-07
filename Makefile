@@ -89,14 +89,8 @@ LIB += ${HL_DEBUG}
 else
 
 # Linux
-<<<<<<< HEAD
-CFLAGS += -m$(ARCH) -fPIC -pthread
-CFLAGS += -I /usr/include/libpng16
-LFLAGS += -lm -Wl,--export-dynamic -Wl,--no-undefined
-=======
 CFLAGS += -m$(MARCH) -fPIC -pthread -fno-omit-frame-pointer
 LFLAGS += -lm -Wl,-rpath,. -Wl,--export-dynamic -Wl,--no-undefined
->>>>>>> upstream/master
 
 ifeq ($(MARCH),32)
 CFLAGS += -I /usr/include/i386-linux-gnu
