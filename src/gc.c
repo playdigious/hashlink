@@ -214,7 +214,7 @@ static void gc_save_context_impl(hl_thread_info *t, void *prev_stack ) {
 	// to gc_save_context (or before) which might hold a gc value !
 	// let's capture them immediately in extra per-thread data
 	t->stack_cur = &prev_stack;
-	void * aligned_pointer = (void*)(((int64_t)prev_stack) & (~0xF));
+	void * aligned_pointer = (void*)(((int64_t)prev_stack) & (~0x7));
 	int size = (int)((char*)aligned_pointer - (char*)stack_cur) / sizeof(void*);
 	if( size > HL_MAX_EXTRA_STACK ) hl_fatal("GC_SAVE_CONTEXT");
 	t->extra_stack_size = size;
