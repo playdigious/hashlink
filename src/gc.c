@@ -73,7 +73,7 @@ static int_val gc_hash( void *ptr ) {
 #	define GC_MEMCHK
 #endif
 
-#if defined(HL_NX) || defined(HL_PS) //|| defined(HL_MOBILE)
+#if defined(HL_NX) || defined(HL_PS) || defined(HL_MOBILE)
 #	define GC_INTERIOR_POINTERS
 #endif
 
