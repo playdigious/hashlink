@@ -207,18 +207,22 @@ HL_API hl_thread_info *hl_get_thread() {
 	return current_thread;
 }
 
-static void gc_save_context(hl_thread_info *t, void *prev_stack ) {
+static void gc_save_context_impl(hl_thread_info *t, void *prev_stack ) {
 	void *stack_cur = &t;
 	setjmp(t->gc_regs);
 	// some compilers (such as clang) might push/pop some callee registers in call
 	// to gc_save_context (or before) which might hold a gc value !
 	// let's capture them immediately in extra per-thread data
 	t->stack_cur = &prev_stack;
-	int size = (int)((char*)prev_stack - (char*)stack_cur) / sizeof(void*);
+	void * aligned_pointer = (void*)(((int64_t)prev_stack) & (~0x7));
+	int size = (int)((char*)aligned_pointer - (char*)stack_cur) / sizeof(void*);
 	if( size > HL_MAX_EXTRA_STACK ) hl_fatal("GC_SAVE_CONTEXT");
 	t->extra_stack_size = size;
-	memcpy(t->extra_stack_data, prev_stack, size*sizeof(void*));
+	memcpy(t->extra_stack_data, aligned_pointer, size*sizeof(void*));
 }
+
+
+void (*gc_save_context)(hl_thread_info *t, void *prev_stack ) = gc_save_context_impl;
 
 #ifndef HL_THREADS
 #	define gc_global_lock(_)
