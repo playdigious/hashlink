@@ -49,7 +49,7 @@
 #ifdef HL_WIN
 #	define gc_hash(ptr)			((int_val)(ptr)&0x0000000FFFFFFFFF)
 #else
-// Linux gives addresses using the following patterns (X=any,Y=small value - can be 0): 
+// Linux gives addresses using the following patterns (X=any,Y=small value - can be 0):
 //		0x0000000YXXX0000
 //		0x0007FY0YXXX0000
 static int_val gc_hash( void *ptr ) {
@@ -109,7 +109,7 @@ void gc_allocator_before_mark( unsigned char *mark_bits );
 // Called when marking ends: should call finalizers, sweep unused blocks and free empty pages
 void gc_allocator_after_mark();
 
-// Allocate a block with given size using the specified page kind. 
+// Allocate a block with given size using the specified page kind.
 // Returns NULL if no block could be allocated
 // Sets size to really allocated size (could be larger)
 // Sets size to -1 if allocation refused (required size is invalid)
@@ -815,8 +815,14 @@ void hl_global_init() {
 }
 
 void hl_global_free() {
+	// do not run cleaning code on android, as it induces crashes with SCUDO on Android 11+ for now
+	// SCUDO detects header corruption for some reason, and it leads to a high crashing rate within
+	// google play console, even though the user is not experiencing the crash per say
+	// temporarily disable cleaning code, system will deal with it anyway
+	#ifndef HL_ANDROID
 	hl_cache_free();
 	hl_gc_free();
+	#endif
 }
 
 struct hl_alloc_block {
