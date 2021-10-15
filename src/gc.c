@@ -27,6 +27,10 @@
 #	include <sys/mman.h>
 #endif
 
+#if defined(HL_ANDROID)
+#include <android/log.h>
+#endif
+
 #define MZERO(ptr,size)		memset(ptr,0,size)
 
 // GC
@@ -921,6 +925,11 @@ void sys_free_align( void *ptr, int size );
 static void *base_addr = (void*)0x40000000;
 #endif
 
+#if defined(HL_ANDROID)
+static int gc_alloc_page_nested_calls_counter = 0;
+static int gc_alloc_page_nested_calls_limit = 500;
+static int gc_alloc_page_nested_calls_max = 0;
+#endif
 static void *gc_alloc_page_memory( int size ) {
 #if defined(HL_WIN)
 #	if defined(GC_DEBUG) && defined(HL_64)
@@ -949,12 +958,28 @@ static void *gc_alloc_page_memory( int size ) {
 		base_addr = (char*)base_addr + GC_PAGE_SIZE;
 		i++;
 		// most likely our hashing creates too many collisions
-		if( i >= 1 << (GC_LEVEL0_BITS + GC_LEVEL1_BITS + 2) )
+		if( i >= 1 << (GC_LEVEL0_BITS + GC_LEVEL1_BITS + 2) ) {
+#if defined(HL_ANDROID)
+			if(gc_alloc_page_nested_calls_counter > gc_alloc_page_nested_calls_max) {
+				gc_alloc_page_nested_calls_max = gc_alloc_page_nested_calls_counter;
+				__android_log_print(ANDROID_LOG_DEBUG, "Debug", "[HASHLINK GC] new gc_alloc_page_nested_calls_max : %d\n", gc_alloc_page_nested_calls_max);
+			}
+			gc_alloc_page_nested_calls_counter = 0;
+#endif
 			return NULL;
+		}
 	}
 	void *ptr = mmap(base_addr,size,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
-	if( ptr == (void*)-1 )
+	if( ptr == (void*)-1 ) {
+		#if defined(HL_ANDROID)
+		if(gc_alloc_page_nested_calls_counter > gc_alloc_page_nested_calls_max) {
+			gc_alloc_page_nested_calls_max = gc_alloc_page_nested_calls_counter;
+			__android_log_print(ANDROID_LOG_DEBUG, "Debug", "[HASHLINK GC] new gc_alloc_page_nested_calls_max : %d\n", gc_alloc_page_nested_calls_max);
+		}
+		gc_alloc_page_nested_calls_counter = 0;
+		#endif
 		return NULL;
+	}
 	if( ((int_val)ptr) & (GC_PAGE_SIZE-1) ) {
 		munmap(ptr,size);
 		void *tmp;
@@ -966,12 +991,32 @@ static void *gc_alloc_page_memory( int size ) {
 			base_addr = (void*)(((int_val)ptr) & ~(GC_PAGE_SIZE-1));
 			tmp = NULL;
 		}
+		#if defined(HL_ANDROID)
+		if(gc_alloc_page_nested_calls_counter++ >= gc_alloc_page_nested_calls_limit) {
+			__android_log_print(ANDROID_LOG_ERROR, "Debug", "[HASHLINK GC] gc_alloc_page_nested_calls_max above limit !!! %d/%d\n", gc_alloc_page_nested_calls_counter,gc_alloc_page_nested_calls_limit);
+			hl_error("Failed to alloc memory page of %d KB after %d attempts. Breaking before stack overflow.",size>>10, gc_alloc_page_nested_calls_counter);
+		}
+		#endif
 		if( tmp ) tmp = mmap(tmp,tmp_size,PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
 		ptr = gc_alloc_page_memory(size);
 		if( tmp ) munmap(tmp,tmp_size);
+#if defined(HL_ANDROID)
+		if(gc_alloc_page_nested_calls_counter > gc_alloc_page_nested_calls_max) {
+			gc_alloc_page_nested_calls_max = gc_alloc_page_nested_calls_counter;
+			__android_log_print(ANDROID_LOG_DEBUG, "Debug", "[HASHLINK GC] new gc_alloc_page_nested_calls_max : %d\n", gc_alloc_page_nested_calls_max);
+		}
+		gc_alloc_page_nested_calls_counter = 0;
+#endif
 		return ptr;
 	}
 	base_addr = (char*)ptr+size;
+#if defined(HL_ANDROID)
+	if(gc_alloc_page_nested_calls_counter > gc_alloc_page_nested_calls_max) {
+		gc_alloc_page_nested_calls_max = gc_alloc_page_nested_calls_counter;
+		__android_log_print(ANDROID_LOG_DEBUG, "Debug", "[HASHLINK GC] new gc_alloc_page_nested_calls_max : %d\n", gc_alloc_page_nested_calls_max);
+	}
+	gc_alloc_page_nested_calls_counter = 0;
+#endif
 	return ptr;
 #endif
 }
