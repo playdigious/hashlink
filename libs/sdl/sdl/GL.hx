@@ -46,11 +46,17 @@ class GL {
 	public static function clear( bits : Int ) {
 	}
 
+	public static function clearBufferfv( drawBuffer : Int, r : Float, g : Float, b : Float, a : Float ) {
+	}
+
 	public static function getError() : Int {
 		return 0;
 	}
 
 	public static function scissor( x : Int, y : Int, width : Int, height : Int ) {
+	}
+
+	public static function invalidateFramebuffer( att : Int ) {
 	}
 
 	public static function clearColor( r : Float, g : Float, b : Float, a : Float) {

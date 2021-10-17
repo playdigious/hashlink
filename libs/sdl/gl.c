@@ -97,7 +97,7 @@ HL_PRIM void HL_NAME(gl_clear)( int bits ) {
 HL_PRIM int HL_NAME(gl_get_error)() {
 #ifdef DBG_GL
 	glFlush();
-	uint error = glGetError();
+	uint32_t error = glGetError();
 	if(error != GL_NO_ERROR)
 		printf("gl get error : %d \n", error);
 	return error;
