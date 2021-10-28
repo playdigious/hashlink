@@ -927,7 +927,7 @@ static void *base_addr = (void*)0x40000000;
 
 #if defined(HL_ANDROID)
 static int gc_alloc_page_nested_calls_counter = 0;
-static int gc_alloc_page_nested_calls_limit = 5000;
+static int gc_alloc_page_nested_calls_limit = 500000;
 static int gc_alloc_page_nested_calls_max = 0;
 #endif
 static void *gc_alloc_page_memory( int size ) {
