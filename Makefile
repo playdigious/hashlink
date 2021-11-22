@@ -63,7 +63,7 @@ else ifeq ($(UNAME),Darwin)
 
 # Mac
 LIBEXT=dylib
-CFLAGS += -m$(ARCH) -I /opt/libjpeg-turbo/include -I /usr/local/opt/jpeg-turbo/include -I /usr/local/include -I /usr/local/opt/libvorbis/include -I /usr/local/opt/openal-soft/include -Dopenal_soft  -DGL_SILENCE_DEPRECATION
+CFLAGS += -m$(ARCH) -I/usr/local/opt/mbedtls@2/include -I /opt/libjpeg-turbo/include -I /usr/local/opt/jpeg-turbo/include -I /usr/local/include -I /usr/local/opt/libvorbis/include -I /usr/local/opt/openal-soft/include -Dopenal_soft  -DGL_SILENCE_DEPRECATION
 LFLAGS += -Wl,-export_dynamic -L/usr/local/lib
 
 ifdef OSX_SDK
@@ -72,7 +72,7 @@ CFLAGS += -isysroot $(ISYSROOT)
 LFLAGS += -isysroot $(ISYSROOT)
 endif
 
-LIBFLAGS += -L/opt/libjpeg-turbo/lib -L/usr/local/opt/jpeg-turbo/lib -L/usr/local/lib -L/usr/local/opt/libvorbis/lib -L/usr/local/opt/openal-soft/lib
+LIBFLAGS += -L/usr/local/opt/mbedtls@2/lib -L/opt/libjpeg-turbo/lib -L/usr/local/opt/jpeg-turbo/lib -L/usr/local/lib -L/usr/local/opt/libvorbis/lib -L/usr/local/opt/openal-soft/lib
 LIBOPENGL = -framework OpenGL
 LIBOPENAL = -lopenal
 LIBSSL = -framework Security -framework CoreFoundation
