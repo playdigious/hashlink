@@ -14,11 +14,15 @@ package sdl;
 	public var keyRepeat : Bool;
 	public var controller : Int;
 	public var value : Int;
-	public var fingerX : Single;
-	public var fingerY : Single;
-	public var fingerIdHigh : Int;
-	public var fingerIdLow : Int;
-	public function new() {}
+	public var fingerId : Int;
+	public var joystick : Int;
+	public var fingerCount : Int;
+	public var dx : Int;
+	public var dy : Int;
+	public var dDist : Int;
+	public var dTheta : Float;
+	public function new() {
+	}
 }
 
 @:enum abstract EventType(Int) {
@@ -40,6 +44,7 @@ package sdl;
 	var TouchDown	= 200;
 	var TouchUp		= 201;
 	var TouchMove	= 202;
+	var TouchMultiGesture = 203;
 	var JoystickAxisMotion	= 300;
 	var JoystickBallMotion	= 301;
 	var JoystickHatMotion	= 302;
@@ -47,13 +52,12 @@ package sdl;
 	var JoystickButtonUp	= 304;
 	var JoystickAdded		= 305;
 	var JoystickRemoved		= 306;
-	//AppEvents
-	var AppTerminating 		= 400;
-	var LowMemory 			= 401;
+	var AppTerminating 	= 400;
+	var LowMemory = 401;
 	var WillEnterBackground = 402;
-	var DidEnterBackground 	= 403;
+	var DidEnterBackground = 403;
 	var WillEnterForeground = 404;
-	var DidEnterForeground 	= 405;
+	var DidEnterForeground = 405;
 }
 
 @:enum abstract WindowStateChange(Int) {
