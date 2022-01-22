@@ -127,7 +127,7 @@ class Sdl {
 		return @:privateAccess String.fromUTF8(detect_keyboard_layout());
 	}
 
-	@:hlNative("?sdl", "set_clipboard_text")
+	/*@:hlNative("?sdl", "set_clipboard_text")
 	private static function _setClipboardText( text : hl.Bytes ) : Bool {
 		return false;
 	}
@@ -149,7 +149,7 @@ class Sdl {
 			return null;
 		else
 			return @:privateAccess String.fromUTF8(t);
-	}
+	}*/
 }
 
 @:enum
