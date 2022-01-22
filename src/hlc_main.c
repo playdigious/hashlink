@@ -57,8 +57,8 @@ extern void sys_global_exit();
 
 //Used to get callstack on Apple devices (android ?)
 #ifdef HL_MOBILE
-HL_API int util_callstack_adresses(int size, void** adresses);
-HL_API const char *util_address_to_name(void* adress);
+// HL_API int util_callstack_adresses(int size, void** adresses);
+// HL_API const char *util_address_to_name(void* adress);
 #endif
 
 static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
@@ -88,9 +88,10 @@ static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
 	}
 #endif
 #ifdef HL_MOBILE
-	uchar *str = hl_to_utf16(util_address_to_name(addr));
-	*outSize = usprintf(out, *outSize, USTR("%s"),str);
-	return out;
+	// uchar *str = hl_to_utf16(util_address_to_name(addr));
+	// *outSize = usprintf(out, *outSize, USTR("%s"),str);
+	// return out;
+	return NULL;
 #endif
 	return NULL;
 }
@@ -102,8 +103,8 @@ static int hlc_capture_stack( void **stack, int size ) {
 	if( count < 0 ) count = 0;
 #	endif
 #ifdef HL_MOBILE
-	count = util_callstack_adresses(size, stack) - 8; // 8 startup
-	if( count < 0 ) count = 0;
+	// count = util_callstack_adresses(size, stack) - 8; // 8 startup
+	// if( count < 0 ) count = 0;
 #endif
 	return count;
 }

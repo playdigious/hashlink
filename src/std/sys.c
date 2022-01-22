@@ -87,7 +87,6 @@ typedef uchar pchar;
 #endif
 
 #ifdef HL_ANDROID
-#	include <AndroidUtils.h>
 #	include <android_utils.h>
 #	include <SDL.h>
 #endif
