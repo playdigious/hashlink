@@ -3,11 +3,10 @@
 #include <hl.h>
 #include <locale.h>
 
-#if defined(_WIN32) || defined(__ANDROID__) || defined(HL_IOS) || defined(HL_TVOS)
-#	include <SDL.h>
-#	include <SDL_syswm.h>
-#elif defined(HL_MAC)
-#	include <SDL.h>
+#if defined(_WIN32) || defined(__ANDROID__)
+#    include <SDL.h>
+#    include <SDL_syswm.h>
+#	 include <time.h>
 #else
 #	include <SDL2/SDL.h>
 #endif
@@ -16,15 +15,13 @@
 #    include <OpenGLES/ES3/gl.h>
 #    include <OpenGLES/ES3/glext.h>
 #    include <SDL2/SDL_syswm.h>
-#    include "IOS_IO.h"
-
-extern SDL_Window* global_sdl_window;
+#    include <hlmobile/ios_utils.h>
 #endif
 
 #ifdef HL_ANDROID
 #   include <GLES/gl.h>
 #   include <SDL_joystick.h>
-
+#   include <android_utils.h>
 extern SDL_Window *Android_Window;
 #endif
 
@@ -56,31 +53,32 @@ typedef struct {
 } wsave_pos;
 
 typedef enum {
-	Quit,
-	MouseMove,
-	MouseLeave,
-	MouseDown,
-	MouseUp,
-	MouseWheel,
-	WindowState,
-	KeyDown,
-	KeyUp,
-	TextInput,
-	GControllerAdded = 100,
-	GControllerRemoved,
-	GControllerDown,
-	GControllerUp,
-	GControllerAxis,
-	TouchDown = 200,
-	TouchUp,
-	TouchMove,
-	JoystickAxisMotion = 300,
-	JoystickBallMotion,
-	JoystickHatMotion,
-	JoystickButtonDown,
-	JoystickButtonUp,
-	JoystickAdded,
-	JoystickRemoved,
+    Quit,
+    MouseMove,
+    MouseLeave,
+    MouseDown,
+    MouseUp,
+    MouseWheel,
+    WindowState,
+    KeyDown,
+    KeyUp,
+    TextInput,
+    GControllerAdded = 100,
+    GControllerRemoved,
+    GControllerDown,
+    GControllerUp,
+    GControllerAxis,
+    TouchDown = 200,
+    TouchUp,
+    TouchMove,
+    TouchMultiGesture,
+    JoystickAxisMotion = 300,
+    JoystickBallMotion,
+    JoystickHatMotion,
+    JoystickButtonDown,
+    JoystickButtonUp,
+    JoystickAdded,
+    JoystickRemoved,
 	AppTerminating = 400,
 	LowMemory,
 	WillEnterBackground,
@@ -120,11 +118,13 @@ typedef struct {
     bool keyRepeat;
     int controller;
     int value;
-	float fingerX;
-	float fingerY;
-	int fingerIdHigh;
-	int fingerIdLow;
+    int fingerId;
     int joystick;
+    int fingerCount;
+    int dx;
+	int dy;
+    int dDist;
+	float dTheta;
 } event_data;
 
 #ifdef HL_IOS
@@ -132,7 +132,6 @@ static int RETINA = 0;
 #endif
 
 HL_PRIM bool HL_NAME(init_once)() {
-	// default GL parameters
 	SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 #ifdef HL_MOBILE
 	SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
@@ -165,8 +164,8 @@ HL_PRIM bool HL_NAME(init_once)() {
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
 #ifdef HL_IOS
-	RETINA = isRetinaActivated() ? SDL_WINDOW_ALLOW_HIGHDPI : 0;
-    SDL_SetHint(SDL_HINT_IOS_HIDE_HOME_INDICATOR, "2");
+	RETINA = supportRetina() ? SDL_WINDOW_ALLOW_HIGHDPI : 0;
+	SDL_SetHint(SDL_HINT_IOS_HIDE_HOME_INDICATOR, "2");
 #endif
 #ifdef HL_ANDROID
 	SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE, "1");
@@ -214,21 +213,25 @@ HL_PRIM bool HL_NAME(hint_value)( vbyte* name, vbyte* value) {
 }
 
 static volatile bool isInBackground = false;
-HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
-	while (true) {
-		SDL_Event e;
-		if (SDL_PollEvent(&e) == 0) break;
 
-		switch (e.type) {
-            case SDL_APP_TERMINATING:
+HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
+#if defined(HL_ANDROID)
+	runCallbacks();
+#endif
+
+    while (true) {
+        SDL_Event e;
+        if (SDL_PollEvent(&e) == 0) break;
+        switch (e.type) {
+			case SDL_APP_TERMINATING:
                 event->type = AppTerminating;
                 break;
             case SDL_APP_LOWMEMORY:
                 event->type = LowMemory;
                 break;
             case SDL_APP_WILLENTERBACKGROUND:
-                event->type = WillEnterBackground;
                 isInBackground = true;
+                event->type = WillEnterBackground;
                 break;
             case SDL_APP_DIDENTERBACKGROUND:
                 isInBackground = true;
@@ -245,206 +248,124 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
             case SDL_QUIT:
                 event->type = Quit;
                 break;
-//           case SDL_MOUSEMOTION:
-//                event->type = MouseMove;
-//                event->mouseX = e.motion.x;
-//                event->mouseY = e.motion.y;
-//                event->mouseXRel = e.motion.xrel;
-//                event->mouseYRel = e.motion.yrel;
-//                break;
+            case SDL_MOUSEMOTION:
+                event->type = MouseMove;
+                event->mouseX = e.motion.x;
+                event->mouseY = e.motion.y;
+                event->mouseXRel = e.motion.xrel;
+                event->mouseYRel = e.motion.yrel;
+                break;
             case SDL_KEYDOWN:
                 event->type = KeyDown;
                 event->keyCode = e.key.keysym.sym;
-				event->scanCode = e.key.keysym.scancode;
-				event->keyRepeat = e.key.repeat != 0;
+                event->scanCode = e.key.keysym.scancode;
+                event->keyRepeat = e.key.repeat != 0;
                 break;
             case SDL_KEYUP:
                 event->type = KeyUp;
                 event->keyCode = e.key.keysym.sym;
-				event->scanCode = e.key.keysym.scancode;
+                event->scanCode = e.key.keysym.scancode;
                 break;
             case SDL_SYSWMEVENT:
-                    continue;
-			case SDL_FINGERDOWN:
-				event->type = TouchDown;
-				event->fingerX = e.tfinger.x;
-				event->fingerY = e.tfinger.y;
-				event->fingerIdLow = e.tfinger.fingerId & 0xffffffff;
-				event->fingerIdHigh = (e.tfinger.fingerId >> 32);
-	/*
-		case SDL_QUIT:
-			event->type = Quit;
-			break;
-		case SDL_MOUSEMOTION:
-			event->type = MouseMove;
-			event->mouseX = e.motion.x;
-			event->mouseY = e.motion.y;
-			event->mouseXRel = e.motion.xrel;
-			event->mouseYRel = e.motion.yrel;
-			break;
-		case SDL_KEYDOWN:
-			event->type = KeyDown;
-			event->keyCode = e.key.keysym.sym;
-			event->scanCode = e.key.keysym.scancode;
-			event->keyRepeat = e.key.repeat != 0;
-			break;
-		case SDL_KEYUP:
-			event->type = KeyUp;
-			event->keyCode = e.key.keysym.sym;
-			event->scanCode = e.key.keysym.scancode;
-			break;
-		case SDL_SYSWMEVENT:
-			continue;
-		case SDL_MOUSEBUTTONDOWN:
-			event->type = MouseDown;
-			event->button = e.button.button;
-			event->mouseX = e.button.x;
-			event->mouseY = e.motion.y;
-			break;
-		case SDL_MOUSEBUTTONUP:
-			event->type = MouseUp;
-			event->button = e.button.button;
-			event->mouseX = e.button.x;
-			event->mouseY = e.motion.y;
-			break;
-		case SDL_FINGERDOWN:
-			event->type = TouchDown;
-			event->mouseX = (int)(e.tfinger.x*10000);
-			event->mouseY = (int)(e.tfinger.y*10000);
-			event->fingerId = (int)e.tfinger.fingerId;
-			break;
-		case SDL_FINGERMOTION:
-			event->type = TouchMove;
-			event->mouseX = (int)(e.tfinger.x*10000);
-			event->mouseY = (int)(e.tfinger.y*10000);
-			event->fingerId = (int)e.tfinger.fingerId;
-			break;
-		case SDL_FINGERUP:
-			event->type = TouchUp;
-			event->mouseX = (int)(e.tfinger.x*10000);
-			event->mouseY = (int)(e.tfinger.y*10000);
-			event->fingerId = (int)e.tfinger.fingerId;
-			break;
-		case SDL_MOUSEWHEEL:
-			event->type = MouseWheel;
-			event->wheelDelta = e.wheel.y;
-#						if SDL_VERSION_ATLEAST(2,0,4)
-			if (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) event->wheelDelta *= -1;
-#						endif
-			event->mouseX = e.wheel.x;
-			event->mouseY = e.wheel.y;
-			break;
-		case SDL_WINDOWEVENT:
-			event->type = WindowState;
-			switch (e.window.event) {
-			case SDL_WINDOWEVENT_SHOWN:
-				event->state = Show;
-				break;
-			case SDL_WINDOWEVENT_HIDDEN:
-				event->state = Hide;
-				break;
-			case SDL_WINDOWEVENT_EXPOSED:
-				event->state = Expose;
-				break;
-			case SDL_WINDOWEVENT_MOVED:
-				event->state = Move;
-				break;
-			case SDL_WINDOWEVENT_SIZE_CHANGED:
-				event->state = Resize;
-				break;
-			case SDL_WINDOWEVENT_MINIMIZED:
-				event->state = Minimize;
-				break;
-			case SDL_WINDOWEVENT_MAXIMIZED:
-				event->state = Maximize;
-				break;
-			case SDL_WINDOWEVENT_RESTORED:
-				event->state = Restore;
-				break;
-			case SDL_WINDOWEVENT_ENTER:
-				event->state = Enter;
-				*/
-				break;
-			case SDL_FINGERMOTION:
-				event->type = TouchMove;
-				event->fingerX = e.tfinger.x;
-				event->fingerY = e.tfinger.y;
-				event->fingerIdLow = e.tfinger.fingerId & 0xffffffff;
-				event->fingerIdHigh = (e.tfinger.fingerId >> 32);
-				break;
-			case SDL_FINGERUP:
-				event->type = TouchUp;
-				event->fingerX = e.tfinger.x;
-				event->fingerY = e.tfinger.y;
-				event->fingerIdLow = e.tfinger.fingerId & 0xffffffff;
-				event->fingerIdHigh = (e.tfinger.fingerId >> 32);
-				break;
-			case SDL_MOUSEBUTTONDOWN:
-				event->type = MouseDown;
-				event->button = e.button.button;
-				event->mouseX = e.button.x;
-				event->mouseY = e.motion.y;
-				break;
-			case SDL_MOUSEBUTTONUP:
-				event->type = MouseUp;
-				event->button = e.button.button;
-				event->mouseX = e.button.x;
-				event->mouseY = e.motion.y;
-				break;
+                continue;
+            case SDL_MOUSEBUTTONDOWN:
+                event->type = MouseDown;
+                event->button = e.button.button;
+                event->mouseX = e.button.x;
+                event->mouseY = e.motion.y;
+                break;
+            case SDL_MOUSEBUTTONUP:
+                event->type = MouseUp;
+                event->button = e.button.button;
+                event->mouseX = e.button.x;
+                event->mouseY = e.motion.y;
+                break;
+            case SDL_FINGERDOWN:
+                event->type = TouchDown;
+                event->mouseX = (int)(e.tfinger.x*10000);
+                event->mouseY = (int)(e.tfinger.y*10000);
+                event->fingerId = (int)e.tfinger.touchId;
+                break;
+            case SDL_FINGERMOTION:
+                event->type = TouchMove;
+                event->mouseX = (int)(e.tfinger.x*10000);
+                event->mouseY = (int)(e.tfinger.y*10000);
+                event->fingerId = (int)e.tfinger.touchId;
+				event->dx = (int)(e.tfinger.dx * 10000);
+				event->dy = (int)(e.tfinger.dy*10000);
+                break;
+            case SDL_FINGERUP:
+                event->type = TouchUp;
+                event->mouseX = (int)(e.tfinger.x*10000);
+                event->mouseY = (int)(e.tfinger.y*10000);
+                event->fingerId = (int)e.tfinger.touchId;
+                break;
+            case SDL_MULTIGESTURE:
+                event->type = TouchMultiGesture;
+                event->mouseX = (int)(e.mgesture.x*10000);
+                event->mouseY = (int)(e.mgesture.y*10000);
+                event->fingerCount = e.mgesture.numFingers;
+				event->dTheta = e.mgesture.dTheta;
+				event->dDist = (int)(e.mgesture.dDist*10000);
+                break;
             case SDL_MOUSEWHEEL:
                 event->type = MouseWheel;
                 event->wheelDelta = e.wheel.y;
-    #						if SDL_VERSION_ATLEAST(2,0,4)
-                if (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) event->wheelDelta *= -1;
-    #						endif
+#						if SDL_VERSION_ATLEAST(2,0,4)
+			if (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) event->wheelDelta *= -1;
+#						endif
                 event->mouseX = e.wheel.x;
                 event->mouseY = e.wheel.y;
+                break;
+            case SDL_DISPLAYEVENT:
+                event->type = WindowState;
+                event->state = Resize;
                 break;
             case SDL_WINDOWEVENT:
                 event->type = WindowState;
                 switch (e.window.event) {
-                case SDL_WINDOWEVENT_SHOWN:
-                    event->state = Show;
-                    break;
-                case SDL_WINDOWEVENT_HIDDEN:
-                    event->state = Hide;
-                    break;
-                case SDL_WINDOWEVENT_EXPOSED:
-                    event->state = Expose;
-                    break;
-                case SDL_WINDOWEVENT_MOVED:
-                    event->state = Move;
-                    break;
-                case SDL_WINDOWEVENT_RESIZED:
-                    event->state = Resize;
-                    break;
-                case SDL_WINDOWEVENT_MINIMIZED:
-                    event->state = Minimize;
-                    break;
-                case SDL_WINDOWEVENT_MAXIMIZED:
-                    event->state = Maximize;
-                    break;
-                case SDL_WINDOWEVENT_RESTORED:
-                    event->state = Restore;
-                    break;
-                case SDL_WINDOWEVENT_ENTER:
-                    event->state = Enter;
-                    break;
-                case SDL_WINDOWEVENT_LEAVE:
-                    event->state = Leave;
-                    break;
-                case SDL_WINDOWEVENT_FOCUS_GAINED:
-                    event->state = Focus;
-                    break;
-                case SDL_WINDOWEVENT_FOCUS_LOST:
-                    event->state = Blur;
-                    break;
-                case SDL_WINDOWEVENT_CLOSE:
-                    event->state = Close;
-                    break;
-                default:
-                    //printf("Unknown window state code %d\\n", e.window.event);
-                    continue;
+                    case SDL_WINDOWEVENT_SHOWN:
+                        event->state = Show;
+                        break;
+                    case SDL_WINDOWEVENT_HIDDEN:
+                        event->state = Hide;
+                        break;
+                    case SDL_WINDOWEVENT_EXPOSED:
+                        event->state = Expose;
+                        break;
+                    case SDL_WINDOWEVENT_MOVED:
+                        event->state = Move;
+                        break;
+                    case SDL_WINDOWEVENT_SIZE_CHANGED:
+                        event->state = Resize;
+                        break;
+                    case SDL_WINDOWEVENT_MINIMIZED:
+                        event->state = Minimize;
+                        break;
+                    case SDL_WINDOWEVENT_MAXIMIZED:
+                        event->state = Maximize;
+                        break;
+                    case SDL_WINDOWEVENT_RESTORED:
+                        event->state = Restore;
+                        break;
+                    case SDL_WINDOWEVENT_ENTER:
+                        event->state = Enter;
+                        break;
+                    case SDL_WINDOWEVENT_LEAVE:
+                        event->state = Leave;
+                        break;
+                    case SDL_WINDOWEVENT_FOCUS_GAINED:
+                        event->state = Focus;
+                        break;
+                    case SDL_WINDOWEVENT_FOCUS_LOST:
+                        event->state = Blur;
+                        break;
+                    case SDL_WINDOWEVENT_CLOSE:
+                        event->state = Close;
+                        break;
+                    default:
+                        //printf("Unknown window state code %d\\n", e.window.event);
+                        continue;
                 }
                 break;
             case SDL_TEXTEDITING:
@@ -517,10 +438,10 @@ HL_PRIM bool HL_NAME(event_loop)( event_data *event ) {
                 event->joystick = e.jdevice.which;
                 break;
             default:
-                printf("Unknown event type 0x%X\\n", e.type);
+                //printf("Unknown event type 0x%X\\n", e.type);
                 continue;
-		}
-		return true;
+        }
+        return true;
 	}
 	return false;
 }
@@ -543,7 +464,7 @@ HL_PRIM int HL_NAME(get_screen_width)() {
 	SDL_GetCurrentDisplayMode(0, &e);
 #ifdef HL_IOS
 	if (RETINA != 0){
-		return getIOSRealWidth();
+        return getRealWidth();
 	}else{
 		return (int)e.w;
 	}
@@ -557,7 +478,7 @@ HL_PRIM int HL_NAME(get_screen_height)() {
 	SDL_GetCurrentDisplayMode(0, &e);
 #ifdef HL_IOS
 	if (RETINA != 0){
-		return getIOSRealHeight();
+        return getRealHeigth();
 	}else{
 		return (int)e.h;
 	}
@@ -645,19 +566,24 @@ DEFINE_PRIM(_BOOL, hint_value, _BYTES _BYTES);
 
 // Window
 
+#if defined(HL_IOS) || defined(HL_TVOS)
+extern SDL_Window* global_sdl_window;
+#endif
 struct { // screen size structure
 	int w;
 	int h;
 } screen;
 
+// Window
+
 HL_PRIM SDL_Window *HL_NAME(win_create_ex)(int x, int y, int width, int height, int sdlFlags) {
 	SDL_Window *w;
 	// force window to match device resolution on mobile
-#ifdef HL_MOBILE
-    SDL_DisplayMode displayMode;
-    SDL_GetDesktopDisplayMode(0, &displayMode);
+#ifdef	HL_MOBILE
+	SDL_DisplayMode displayMode;
+	SDL_GetDesktopDisplayMode(0, &displayMode);
 #	if defined(HL_IOS)
-	global_sdl_window = w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | RETINA | SDL_WINDOW_FULLSCREEN);
+	global_sdl_window = w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | RETINA);
 #	elif defined(HL_TVOS)
 	global_sdl_window = w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS);
 #	elif defined(HL_ANDROID)
@@ -665,8 +591,10 @@ HL_PRIM SDL_Window *HL_NAME(win_create_ex)(int x, int y, int width, int height, 
 	screen.h = displayMode.h;
 
 	w = Android_Window;
-	if(w == NULL) {
-		w = SDL_CreateWindow("DeadCells", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen.w, screen.h, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+
+	if(w == NULL)
+	{
+		w = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen.w, screen.h, SDL_WINDOW_OPENGL | SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
 	}
 #	else
 	w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | sdlFlags);
@@ -715,11 +643,11 @@ HL_PRIM bool HL_NAME(win_set_fullscreen)(SDL_Window *win, int mode) {
 	}
 #	endif
 	switch( mode ) {
-		case 0: // WINDOWED
-			return SDL_SetWindowFullscreen(win, 0) == 0;
-		case 1: // FULLSCREEN
-			return SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP) == 0;
-		case 2: // BORDERLESS
+	case 0: // WINDOWED
+		return SDL_SetWindowFullscreen(win, 0) == 0;
+	case 1: // FULLSCREEN
+		return SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP) == 0;
+	case 2: // BORDERLESS
 #		ifdef _WIN32
 		{
 			HMONITOR hmon = MonitorFromWindow(wnd,MONITOR_DEFAULTTONEAREST);
@@ -742,8 +670,8 @@ HL_PRIM bool HL_NAME(win_set_fullscreen)(SDL_Window *win, int mode) {
 #	else
 		return SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP) == 0;
 #	endif
-		case 3:
-			return SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN) == 0;
+	case 3:
+		return SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN) == 0;
 	}
 	return false;
 }
@@ -803,23 +731,23 @@ HL_PRIM bool HL_NAME(win_set_opacity)(SDL_Window *win, double opacity) {
 
 HL_PRIM void HL_NAME(win_resize)(SDL_Window *win, int mode) {
 	switch( mode ) {
-		case 0:
-			SDL_MaximizeWindow(win);
-			break;
-		case 1:
-			SDL_MinimizeWindow(win);
-			break;
-		case 2:
-			SDL_RestoreWindow(win);
-			break;
-		case 3:
-			SDL_ShowWindow(win);
-			break;
-		case 4:
-			SDL_HideWindow(win);
-			break;
-		default:
-			break;
+	case 0:
+		SDL_MaximizeWindow(win);
+		break;
+	case 1:
+		SDL_MinimizeWindow(win);
+		break;
+	case 2:
+		SDL_RestoreWindow(win);
+		break;
+	case 3:
+		SDL_ShowWindow(win);
+		break;
+	case 4:
+		SDL_HideWindow(win);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -830,14 +758,13 @@ static bool fpsLock = true;
 #define MIN_DELAY_TIME (0.002f)
 #define MAX_DELAY_TIME (1.0f / desiredFPS)
 
-HL_PRIM void HL_NAME(lock_fps)(int wantedFPS) {
-	desiredFPS = wantedFPS < 0 ? 0 : wantedFPS;
-	fpsLock = desiredFPS > 0;
+HL_PRIM void HL_NAME(lock_fps)(Uint32 wantedFPS) {
+	fpsLock = wantedFPS > 0;
+	desiredFPS = wantedFPS;
 }
 
-
 HL_PRIM void HL_NAME(win_swap_window)(SDL_Window *win) {
- #ifdef HL_MOBILE
+#ifdef HL_MOBILE
     //Handle app suspension / interruption
     while (isInBackground) {
         SDL_Delay(100);
@@ -850,7 +777,7 @@ HL_PRIM void HL_NAME(win_swap_window)(SDL_Window *win) {
         }
     }
 #endif
-
+        
     // Do the GL swap
     SDL_GL_SwapWindow(win);
 
@@ -891,7 +818,7 @@ DEFINE_PRIM(TGL, win_get_glcontext, TWIN);
 DEFINE_PRIM(_BOOL, win_set_fullscreen, TWIN _I32);
 DEFINE_PRIM(_VOID, win_resize, TWIN _I32);
 DEFINE_PRIM(_VOID, win_set_title, TWIN _BYTES);
-DEFINE_PRIM(_VOID, lock_fps, _I32);
+DEFINE_PRIM(_VOID, lock_fps,_I32);
 DEFINE_PRIM(_VOID, win_set_position, TWIN _I32 _I32);
 DEFINE_PRIM(_VOID, win_get_position, TWIN _REF(_I32) _REF(_I32));
 DEFINE_PRIM(_VOID, win_set_size, TWIN _I32 _I32);
@@ -914,7 +841,7 @@ HL_PRIM int HL_NAME(gctrl_count)() {
 
 #ifdef HL_ANDROID
 static const char* fmt_addMapping = "%s,%s,%s";
-static const char* defaultMapping = "a:b0,b:b1,x:b2,y:b3,back:b4,start:b6,leftstick:b7,rightstick:b8,leftshoulder:b9,rightshoulder:b10,dpup:b11,dpdown:b12,dpleft:b13,dpright:b14,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:a4,righttrigger:a5";
+static const char* defaultMapping = "a:b0,b:b1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,";
 #endif
 
 HL_PRIM SDL_GameController *HL_NAME(gctrl_open)(int idx) {
@@ -1077,19 +1004,6 @@ HL_PRIM void HL_NAME(set_cursor)( SDL_Cursor *c ) {
 	SDL_SetCursor(c);
 }
 
-HL_PRIM bool HL_NAME(set_clipboard_text)(char* text) {
-	return SDL_SetClipboardText(text) == 0;
-}
-
-HL_PRIM char* HL_NAME(get_clipboard_text)() {
-	char* chr = SDL_GetClipboardText();
-	if (chr == NULL)
-		return NULL;
-	vbyte* bytes = hl_copy_bytes(chr, (int) strlen(chr) + 1);
-	SDL_free(chr);
-	return bytes;
-}
-
 #define MAX_DEVICES 16
 HL_PRIM varray *HL_NAME(get_devices)() {
 	varray *a = hl_alloc_array(&hlt_bytes, MAX_DEVICES);
@@ -1112,6 +1026,4 @@ DEFINE_PRIM(_CURSOR, cursor_create, _SURF _I32 _I32);
 DEFINE_PRIM(_CURSOR, cursor_create_system, _I32);
 DEFINE_PRIM(_VOID, free_cursor, _CURSOR);
 DEFINE_PRIM(_VOID, set_cursor, _CURSOR);
-DEFINE_PRIM(_BOOL, set_clipboard_text, _BYTES);
-DEFINE_PRIM(_BYTES, get_clipboard_text, _NO_ARG);
 DEFINE_PRIM(_ARR, get_devices, _NO_ARG);

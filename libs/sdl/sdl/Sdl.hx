@@ -30,8 +30,10 @@ class Sdl {
 		return hxd.System.Platform.PC;
 	}
 
+	#if hlmobile
 	public static function lockFps(wantedFPS:Int) {
 	}
+	#end
 
 	public static dynamic function onGlContextRetry() {
 		return false;
