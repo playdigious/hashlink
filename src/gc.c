@@ -930,6 +930,14 @@ void *sys_alloc_align( int size, int align );
 void sys_free_align( void *ptr, int size );
 #elif !defined(HL_WIN)
 static void *base_addr = (void*)0x40000000;
+typedef struct _pextra pextra;
+struct _pextra {
+	void *page_ptr;
+	void *base_ptr;
+	pextra *next;
+};
+static pextra *extra_pages = NULL;
+#define EXTRA_SIZE (GC_PAGE_SIZE + (4<<10))
 #endif
 
 #if defined(HL_ANDROID)
@@ -960,6 +968,7 @@ static void *gc_alloc_page_memory( int size ) {
 #elif defined(HL_CONSOLE)
 	return sys_alloc_align(size, GC_PAGE_SIZE);
 #else
+	static int recursions = 0;
 	int i = 0;
 	while( gc_will_collide(base_addr,size) ) {
 		base_addr = (char*)base_addr + GC_PAGE_SIZE;
@@ -989,6 +998,17 @@ static void *gc_alloc_page_memory( int size ) {
 	}
 	if( ((int_val)ptr) & (GC_PAGE_SIZE-1) ) {
 		munmap(ptr,size);
+		if( recursions >= 5 ) {
+			ptr = mmap(base_addr,size+EXTRA_SIZE,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+			int offset = (int)((int_val)ptr) & (GC_PAGE_SIZE-1);
+			void *aligned = (char*)ptr + (GC_PAGE_SIZE - offset);
+			pextra *inf = (pextra*)(offset > (EXTRA_SIZE>>1) ? ((char*)ptr + EXTRA_SIZE - sizeof(pextra)) : (char*)ptr);
+			inf->page_ptr = aligned;
+			inf->base_ptr = ptr;
+			inf->next = extra_pages;
+			extra_pages = inf;
+			return aligned;
+		}
 		void *tmp;
 		int tmp_size = (int)((int_val)ptr - (int_val)base_addr);
 		if( tmp_size > 0 ) {
@@ -1005,7 +1025,9 @@ static void *gc_alloc_page_memory( int size ) {
 		}
 		#endif
 		if( tmp ) tmp = mmap(tmp,tmp_size,PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+		recursions++
 		ptr = gc_alloc_page_memory(size);
+		recursions--;
 		if( tmp ) munmap(tmp,tmp_size);
 #if defined(HL_ANDROID)
 		if(gc_alloc_page_nested_calls_counter > gc_alloc_page_nested_calls_max) {
@@ -1034,6 +1056,19 @@ static void gc_free_page_memory( void *ptr, int size ) {
 #elif defined(HL_CONSOLE)
 	sys_free_align(ptr,size);
 #else
+	pextra *e = extra_pages, *prev = NULL;
+	while( e ) {
+		if( e->page_ptr == ptr ) {
+			if( prev )
+				prev->next = e->next;
+			else
+				extra_pages = e->next;
+			munmap(e->base_ptr, size + EXTRA_SIZE);
+			return;
+		}
+		prev = e;
+		e = e->next;
+	}
 	munmap(ptr,size);
 #endif
 }
