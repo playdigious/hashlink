@@ -53,10 +53,10 @@ typedef char pchar;
 #include <unistd.h>
 
 typedef struct {
+	pchar *file;
 	hl_code *code;
 	hl_module *m;
 	vdynamic *ret;
-	pchar *file;
 	int file_time;
 } main_context;
 
