@@ -437,7 +437,7 @@ static void profile_event( int code, vbyte *ptr, int dataLen ) {
 		break;
 	case -7:
 		{
-			uchar *end = NULL;
+			const uchar *end = NULL;
 			hl_profile_setup( ptr ? utoi((uchar*)ptr,&end) : 1000);
 		}
 		break;
@@ -460,4 +460,3 @@ static void profile_event( int code, vbyte *ptr, int dataLen ) {
 		break;
 	}
 }
-
