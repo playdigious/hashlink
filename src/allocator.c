@@ -534,6 +534,7 @@ static int gc_allocator_get_block_interior( gc_pheader *page, void **block ) {
 	int bid = offset / page->alloc.block_size;
 	if( bid < page->alloc.first_block) return -1;
 	if( page->alloc.sizes ) {
+		if( bid < page->alloc.first_block ) return -1;
 		while( page->alloc.sizes[bid] == 0 ) {
 			if( bid == page->alloc.first_block ) return -1;
 			bid--;
