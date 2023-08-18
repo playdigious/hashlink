@@ -10,6 +10,7 @@ extern bool sys_jpg_decode( vbyte *data, int dataLen, vbyte *out, int width, int
 
 #include <zlib.h>
 #include <vorbis/vorbisfile.h>
+#include <opus/opusfile.h>
 
 #if !defined(HL_MOBILE)
 #define MINIMP3_IMPLEMENTATION
@@ -433,8 +434,66 @@ DEFINE_PRIM(_I32, ogg_tell, _OGG);
 DEFINE_PRIM(_BOOL, ogg_seek, _OGG _I32);
 DEFINE_PRIM(_I32, ogg_read, _OGG _BYTES _I32 _I32);
 
-#if !defined(HL_MOBILE)
+/* ----------------------------------------------- SOUND : OPUS ------------------------------------------------ */
+
+typedef struct _fmt_opus fmt_opus;
+struct _fmt_opus {
+	void (*finalize)( fmt_opus * );
+	OggOpusFile *f;
+	char *bytes;
+	int size;
+};
+
+static void opus_finalize( fmt_opus *o ) {
+	op_free(o->f);
+}
+
+HL_PRIM fmt_opus *HL_NAME(opus_open)( char *bytes, int size ) {
+	int ret = 0;
+	fmt_opus *o = (fmt_opus*)hl_gc_alloc_finalizer(sizeof(fmt_opus));
+	o->finalize = NULL;
+	o->bytes = bytes;
+	o->size = size;
+	o->f = op_open_memory(bytes, size, &ret);
+	if (ret != 0)
+		return NULL;
+	o->finalize = opus_finalize;
+	return o;
+}
+
+HL_PRIM void HL_NAME(opus_info)( fmt_opus *o, int *bitrate, int *freq, int *samples, int *channels ) {
+	*bitrate = op_bitrate(o->f, -1);
+	*freq = 48000;
+	*channels = op_channel_count(o->f, -1);
+	*samples = op_pcm_total(o->f, -1);
+}
+
+HL_PRIM int HL_NAME(opus_tell)( fmt_opus *o ) {
+	return (int)op_pcm_tell(o->f); // overflow at 12 hours @48 Khz
+}
+
+HL_PRIM bool HL_NAME(opus_seek)( fmt_opus *o, int sample ) {
+	return op_pcm_seek(o->f,sample) == 0;
+}
+
+HL_PRIM int HL_NAME(opus_read)( fmt_opus *o, char *output, int size, int format ) {
+	int ret = -1;
+	hl_blocking(true);
+	ret = op_read_stereo(o->f, output, size / 2);
+	hl_blocking(false);
+	return ret;
+}
+
+#define _OPUS _ABSTRACT(fmt_opus)
+
+DEFINE_PRIM(_OPUS, opus_open, _BYTES _I32);
+DEFINE_PRIM(_VOID, opus_info, _OPUS _REF(_I32) _REF(_I32) _REF(_I32) _REF(_I32));
+DEFINE_PRIM(_I32, opus_tell, _OPUS);
+DEFINE_PRIM(_BOOL, opus_seek, _OPUS _I32);
+DEFINE_PRIM(_I32, opus_read, _OPUS _BYTES _I32 _I32);
+
 /* ----------------------------------------------- SOUND : MP3 ------------------------------------------------ */
+#if !defined(HL_MOBILE)
 
 typedef struct _fmt_mp3 fmt_mp3;
 struct _fmt_mp3 {
