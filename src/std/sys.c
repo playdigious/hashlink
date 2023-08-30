@@ -160,7 +160,7 @@ HL_PRIM void hl_sys_print( vbyte *msg ) {
 	hl_blocking(true);
 #if defined(HL_ANDROID)
 	LOG_ANDROID_FMT("Print : %s", hl_to_utf8(msg));
-#elif defined(HL_XBO)
+#elif defined(HL_XBO) || defined(HL_XBS)
 	OutputDebugStringW((LPCWSTR)msg);
 #else
 #	ifdef HL_WIN_DESKTOP
