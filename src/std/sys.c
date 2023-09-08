@@ -77,9 +77,6 @@ typedef uchar pchar;
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
-#if TARGET_OS_IOS || TARGET_OS_TV
-#include <ios_utils.h>
-#endif
 #endif
 
 #ifdef HL_MAC
