@@ -595,7 +595,12 @@ HL_PRIM void HL_NAME(gl_buffer_data_size)( int target, int size, int param ) {
 
 HL_PRIM void HL_NAME(gl_buffer_data)( int target, int size, vbyte *data, int param ) {
 #ifdef HL_MOBILE
-	void* ptr = glMapBufferRange(target, 0, size, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+#	if defined(HL_IOS) || defined(HL_TVOS)
+    GLbitfield access = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT;
+#   else
+    GLbitfield access = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT;
+#   endif
+	void* ptr = glMapBufferRange(target, 0, size, access);
 	chkErr();
 	memcpy(ptr, data, size);
 	glUnmapBuffer(target);
@@ -608,7 +613,12 @@ HL_PRIM void HL_NAME(gl_buffer_data)( int target, int size, vbyte *data, int par
 
 HL_PRIM void HL_NAME(gl_buffer_sub_data)( int target, int offset, vbyte *data, int srcOffset, int srcLength ) {
 #ifdef HL_MOBILE
-	void* ptr = glMapBufferRange(target, offset, srcLength, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+#	if defined(HL_IOS) || defined(HL_TVOS)
+    GLbitfield access = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT;
+#   else
+    GLbitfield access = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT;
+#   endif
+	void* ptr = glMapBufferRange(target, offset, srcLength, access);
 	chkErr();
 	memcpy(ptr, data + srcOffset, srcLength);
 	glUnmapBuffer(target);
