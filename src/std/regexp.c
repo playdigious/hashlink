@@ -98,8 +98,8 @@ HL_PRIM int hl_regexp_matched_pos( ereg *e, int m, int *len ) {
 		hl_error("Calling matchedPos() on an unmatched regexp");
 	if( m < 0 || m >= e->nmatches )
 		hl_error("Matched index %d outside bounds",m);
-	start = (int)matches[m*2];
-	if( len ) *len = (int)matches[m*2+1] - start;
+	start = (int)e->matches[m*2];
+	if( len ) *len = (int)e->matches[m*2+1] - start;
 	return start;
 }
 

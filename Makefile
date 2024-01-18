@@ -8,15 +8,10 @@ INSTALL_LIB_DIR ?= $(PREFIX)/lib
 INSTALL_INCLUDE_DIR ?= $(PREFIX)/include
 
 
-# From upstream, changes made for m1, needs to be checked
-#LIBS=fmt sdl ssl openal ui uv mysql sqlite
-#ARCH ?= $(shell uname -m)
-
-#CFLAGS = -Wall -O3 -I src -std=c11 -D LIBHL_EXPORTS
-
 LIBS=fmt sdl ssl openal ui uv mysql
+ARCH ?= $(shell uname -m)
 
-CFLAGS = -Wall -O3 -I src -msse2 -mfpmath=sse -std=c11 -I include -I include/pcre -I include/mikktspace -I include/minimp3 -D LIBHL_EXPORTS
+CFLAGS = -Wall -O3 -I src -std=c11 -D LIBHL_EXPORTS
 
 LFLAGS = -L. -lhl
 EXTRA_LFLAGS ?=
@@ -76,9 +71,6 @@ else ifeq ($(UNAME),Darwin)
 
 # Mac
 LIBEXT=dylib
-<<<<<<< HEAD
-CFLAGS += -m$(MARCH) -I /usr/local/include -I /usr/local/opt/libjpeg-turbo/include -I /usr/local/opt/jpeg-turbo/include -I /usr/local/opt/sdl2/include/SDL2 -I /usr/local/opt/libvorbis/include -I /usr/local/opt/openal-soft/include -Dopenal_soft  -DGL_SILENCE_DEPRECATION
-=======
 
 BPREFIX := $(shell brew --prefix)
 
@@ -102,7 +94,6 @@ LFLAGS += -Wl,-export_dynamic
 CFLAGS += -m$(MARCH) -I include -I /usr/local/include -I /usr/local/opt/libjpeg-turbo/include \
 	-I /usr/local/opt/jpeg-turbo/include -I /usr/local/opt/sdl2/include -I /usr/local/opt/libvorbis/include \
 	-I /usr/local/opt/openal-soft/include -Dopenal_soft  -DGL_SILENCE_DEPRECATION
->>>>>>> dacd8fb1 (Easier build on M1 take 2 (#611))
 LFLAGS += -Wl,-export_dynamic -L/usr/local/lib
 
 ifdef OSX_SDK

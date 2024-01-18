@@ -120,15 +120,10 @@ static int hlc_capture_stack( void **stack, int size ) {
 	count = backtrace(stack, size) - 8;
 #	elif defined(HL_MAC)
 	count = backtrace(stack, size) - 6;
-#	endif
-<<<<<<< HEAD
-#ifdef HL_MOBILE
+#   elif defined(HL_MOBILE)
 	count = util_callstack_adresses(size, stack) - 8; // 8 startup
+#   endif
 	if( count < 0 ) count = 0;
-#endif
-=======
-	if( count < 0 ) count = 0;
->>>>>>> a21544c0 (Add hlc stack trace to Linux/Mac (#634))
 	return count;
 }
 
