@@ -1,6 +1,6 @@
 
 class StackElement {
-	static var UID = 1;
+	static var UID = 0;
 	public var id : Int;
 	public var desc : String;
 	public var file : String;
@@ -58,6 +58,7 @@ class Thread {
 	public var tid : Int;
 	public var curFrame : Frame;
 	public var frames : Array<Frame>;
+	public var name : String;
 
 	public function new(tid) {
 		this.tid = tid;
@@ -129,6 +130,7 @@ class ProfileGen {
 		if( f.readString(4) != "PROF" ) throw "Invalid profiler file";
 		var version = f.readInt32();
 		var sampleCount = f.readInt32();
+		var gcMajor = new StackElement("GC Major");
 		var rootElt = new StackElement("(root)");
 		var hthreads = new Map();
 		var threads = [];
@@ -136,6 +138,7 @@ class ProfileGen {
 		var fileMaps : Array<Map<Int,StackElement>> = [];
 		while( true ) {
 			var time = try f.readDouble() catch( e : haxe.io.Eof ) break;
+			if( time == -1 ) break;
 			var tid = f.readInt32();
 			if( tcur == null || tid != tcur.tid ) {
 				tcur = hthreads.get(tid);
@@ -148,7 +151,7 @@ class ProfileGen {
 			}
 			var msgId = f.readInt32();
 			if( msgId < 0 ) {
-				var count = msgId & 0x7FFFFFFF;
+				var count = msgId & 0x3FFFFFFF;
 				var stack = [];
 				for( i in 0...count ) {
 					var file = f.readInt32();
@@ -175,6 +178,13 @@ class ProfileGen {
 					}
 					stack[i] = elt;
 				}
+				if( msgId & 0x40000000 != 0 )
+					stack.unshift(gcMajor);
+				if( tcur.curFrame.samples.length == 100000 ) {
+					tcur.curFrame = new Frame();
+					tcur.curFrame.startTime = time;
+					tcur.frames.push(tcur.curFrame);
+				}
 				tcur.curFrame.samples.push({ time : time, thread : tid, stack : stack });
 			} else {
 				var size = f.readInt32();
@@ -195,16 +205,28 @@ class ProfileGen {
 			}
 		}
 
+		for( t in threads )
+			t.name = "Thread "+t.tid;
+		threads[0].name = "Main";
+
+		var namesCount = try f.readInt32() catch( e : haxe.io.Eof ) 0;
+		for( i in 0...namesCount ) {
+			var tid = f.readInt32();
+			var tname = f.readString(f.readInt32());
+			var t = hthreads.get(tid);
+			t.name = tname;
+		}
+
 		var mainTid = threads[0].tid;
-		var json : Array<Dynamic> = [
+		var json : Array<Dynamic> = [for( t in threads )
 			{
     			pid : 0,
-    			tid : mainTid,
+    			tid : t.tid,
  	 			ts : 0,
 				ph : "M",
 				cat : "__metadata",
 				name : "thread_name",
-				args : { name : "CrBrowserMain" }
+				args : { name : t.name }
 			}
 		];
 

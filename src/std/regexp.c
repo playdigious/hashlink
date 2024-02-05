@@ -95,11 +95,11 @@ HL_PRIM ereg *hl_regexp_new_options( vbyte *str, vbyte *opts ) {
 HL_PRIM int hl_regexp_matched_pos( ereg *e, int m, int *len ) {
 	int start;
 	if( !e->matched )
-		hl_error("Calling matchedPos() on an unmatched regexp"); 
+		hl_error("Calling matchedPos() on an unmatched regexp");
 	if( m < 0 || m >= e->nmatches )
 		hl_error("Matched index %d outside bounds",m);
-	start = e->matches[m*2];
-	if( len ) *len = e->matches[m*2+1] - start;
+	start = (int)e->matches[m*2];
+	if( len ) *len = (int)e->matches[m*2+1] - start;
 	return start;
 }
 
