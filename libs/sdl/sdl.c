@@ -1115,3 +1115,14 @@ DEFINE_PRIM(_VOID, set_cursor, _CURSOR);
 DEFINE_PRIM(_BOOL, set_clipboard_text, _BYTES);
 DEFINE_PRIM(_BYTES, get_clipboard_text, _NO_ARG);
 DEFINE_PRIM(_ARR, get_devices, _NO_ARG);
+
+HL_PRIM char* HL_NAME(get_version)() {
+	SDL_version version;
+	SDL_GetVersion(&version);
+	char chr[16];
+	memset(chr,0,sizeof(chr));
+	sprintf(chr, "%d.%d.%d", version.major, version.minor, version.patch);
+	vbyte* bytes = hl_copy_bytes(chr, (int) strlen(chr) + 1);
+	return bytes;
+}
+DEFINE_PRIM(_BYTES, get_version, _NO_ARG);
