@@ -30,7 +30,7 @@
 
 static const char* ios_get_document_path()
 {
-	NSString* string = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject];
+	NSURL* string = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject];
 	const char* path = strdup([string fileSystemRepresentation]);
 	return path;
 }

@@ -127,7 +127,7 @@ class Sdl {
 		return @:privateAccess String.fromUTF8(detect_keyboard_layout());
 	}
 
-	@:hlNative("?sdl", "set_clipboard_text")
+	@:hlNative("sdl", "set_clipboard_text")
 	private static function _setClipboardText( text : hl.Bytes ) : Bool {
 		return false;
 	}
@@ -138,13 +138,26 @@ class Sdl {
 		return @:privateAccess _setClipboardText( text.toUtf8() );
 	}
 
-	@:hlNative("?sdl", "get_clipboard_text")
+	@:hlNative("sdl", "get_clipboard_text")
 	private static function _getClipboardText() : hl.Bytes {
 		return null;
 	}
 
 	public static function getClipboardText() : String {
 		var t = _getClipboardText();
+		if( t == null )
+			return null;
+		else
+			return @:privateAccess String.fromUTF8(t);
+	}
+
+    @:hlNative("sdl", "get_version")
+	private static function _getVersion() : hl.Bytes {
+		return null;
+	}
+
+    public static function getVersion() : String {
+		var t = _getVersion();
 		if( t == null )
 			return null;
 		else
