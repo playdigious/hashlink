@@ -105,6 +105,7 @@ static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
 		return out;
 	}
 #endif
+	return NULL;
 }
 
 static int hlc_capture_stack( void **stack, int size ) {
