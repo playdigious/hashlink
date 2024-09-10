@@ -55,14 +55,11 @@ extern void sys_global_exit();
 #	define _CrtCheckMemory()
 #endif
 
-
-//Used to get callstack on Apple devices (android ?)
-#ifdef HL_MOBILE
-HL_API int util_callstack_adresses(int size, void** adresses);
-HL_API const char *util_address_to_name(void* adress);
-#endif
-
-#if defined(HL_LINUX) || defined(HL_MAC)
+#if defined(HL_ANDROID)
+    //backtrace is not standard on bionic, use our own implementation
+    HL_API size_t android_backtrace(void** buffer, size_t size);
+    HL_API const char* android_backtrace_symbols(void* symbolAddress);
+#elif defined(HL_LINUX) || defined(HL_MAC) || defined(HL_IOS) || defined(HL_TVOS)
 #	include <execinfo.h>
 #endif
 
@@ -91,11 +88,11 @@ static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
 		*outSize = usprintf(out,*outSize,USTR("%s(%s:%d)"),data.sym.Name,wcsrchr(line.FileName,'\\')+1,(int)line.LineNumber);
 		return out;
 	}
-#elif defined(HL_MOBILE)
-	uchar *str = hl_to_utf16(util_address_to_name(addr));
+#elif defined(HL_ANDROID)
+	uchar *str = hl_to_utf16(android_backtrace_symbols(addr));
 	*outSize = usprintf(out, *outSize, USTR("%s"),str);
 	return out;
-#elif defined(HL_LINUX) || defined(HL_MAC)
+#elif defined(HL_LINUX) || defined(HL_MAC) || defined(HL_IOS) || defined(HL_TVOS)
 	void *array[1];
 	char **strings;
 	array[0] = addr;
@@ -108,17 +105,18 @@ static uchar *hlc_resolve_symbol( void *addr, uchar *out, int *outSize ) {
 		return out;
 	}
 #endif
+	return NULL;
 }
 
 static int hlc_capture_stack( void **stack, int size ) {
 	int count = 0;
 #	ifdef HL_WIN_DESKTOP
 	count = CaptureStackBackTrace(2, size, stack, NULL) - 8; // 8 startup
-#   elif defined(HL_MOBILE)
-    count = util_callstack_adresses(size, stack) - 8; // 8 startup
+#   elif defined(HL_ANDROID)
+    count = android_backtrace(stack, size) - 8;
 #	elif defined(HL_LINUX)
 	count = backtrace(stack, size) - 8;
-#	elif defined(HL_MAC)
+#	elif defined(HL_MAC) || defined(HL_IOS) || defined(HL_TVOS)
 	count = backtrace(stack, size) - 6;
 #   endif
 	if( count < 0 ) count = 0;
