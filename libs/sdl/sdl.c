@@ -5,6 +5,7 @@
 
 #if defined(_WIN32) || defined(__ANDROID__) || defined(HL_IOS) || defined(HL_TVOS)
 #	include <SDL.h>
+#	include <SDL_vulkan.h>
 #	include <SDL_syswm.h>
 #elif defined(HL_MAC)
 #	include <SDL.h>
@@ -653,9 +654,17 @@ struct { // screen size structure
 HL_PRIM SDL_Window *HL_NAME(win_create_ex)(int x, int y, int width, int height, int sdlFlags) {
 	SDL_Window *w;
 	// force window to match device resolution on mobile
-#ifdef HL_MOBILE
-    SDL_DisplayMode displayMode;
-    SDL_GetDesktopDisplayMode(0, &displayMode);
+	if ((sdlFlags & (
+#ifdef HL_MAC
+		SDL_WINDOW_METAL |
+#endif
+		SDL_WINDOW_VULKAN )) == 0) {
+		sdlFlags |= SDL_WINDOW_OPENGL;
+	}
+
+#ifdef	HL_MOBILE
+	SDL_DisplayMode displayMode;
+	SDL_GetDesktopDisplayMode(0, &displayMode);
 #	if defined(HL_IOS)
 	global_sdl_window = w = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL | RETINA | SDL_WINDOW_FULLSCREEN);
 #	elif defined(HL_TVOS)
@@ -1115,3 +1124,14 @@ DEFINE_PRIM(_VOID, set_cursor, _CURSOR);
 DEFINE_PRIM(_BOOL, set_clipboard_text, _BYTES);
 DEFINE_PRIM(_BYTES, get_clipboard_text, _NO_ARG);
 DEFINE_PRIM(_ARR, get_devices, _NO_ARG);
+
+HL_PRIM char* HL_NAME(get_version)() {
+	SDL_version version;
+	SDL_GetVersion(&version);
+	char chr[16];
+	memset(chr,0,sizeof(chr));
+	sprintf(chr, "%d.%d.%d", version.major, version.minor, version.patch);
+	vbyte* bytes = hl_copy_bytes(chr, (int) strlen(chr) + 1);
+	return bytes;
+}
+DEFINE_PRIM(_BYTES, get_version, _NO_ARG);
