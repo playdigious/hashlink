@@ -21,6 +21,8 @@ LIBEXT = so
 LIBTURBOJPEG = -lturbojpeg
 LIBPNG = -lpng
 
+LHL_LINK_FLAGS =
+
 PCRE = include/pcre/pcre_chartables.o include/pcre/pcre_compile.o include/pcre/pcre_dfa_exec.o \
 	include/pcre/pcre_exec.o include/pcre/pcre_fullinfo.o include/pcre/pcre_globals.o \
 	include/pcre/pcre_newline.o include/pcre/pcre_string_utils.o include/pcre/pcre_tables.o include/pcre/pcre_xclass.o \
@@ -121,6 +123,10 @@ endif
 CFLAGS += -arch $(ARCH)
 LFLAGS += -arch $(ARCH)
 
+LFLAGS += -rpath @executable_path -rpath $(INSTALL_LIB_DIR)
+LIBFLAGS += -rpath @executable_path -rpath $(INSTALL_LIB_DIR)
+LHL_LINK_FLAGS += -install_name @rpath/libhl.dylib
+
 else
 
 # Linux
@@ -168,7 +174,7 @@ uninstall:
 libs: $(LIBS)
 
 libhl: ${LIB}
-	${CC} ${CFLAGS} -o libhl.$(LIBEXT) -m${MARCH} ${LIBFLAGS} -shared ${LIB} -lpthread -lm
+	${CC} ${CFLAGS} -o libhl.$(LIBEXT) -m${MARCH} ${LIBFLAGS} ${LHL_LINK_FLAGS} -shared ${LIB} -lpthread -lm
 
 hlc: ${BOOT}
 	${CC} ${CFLAGS} -o hlc ${BOOT} ${LFLAGS} ${EXTRA_LFLAGS}
