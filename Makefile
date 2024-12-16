@@ -35,6 +35,8 @@ STD = src/std/array.o src/std/buffer.o src/std/bytes.o src/std/cast.o src/std/da
 
 HL = src/code.o src/jit.o src/main.o src/module.o src/debugger.o src/profile.o
 
+FMT_INCLUDE = -I include/mikktspace -I include/minimp3
+
 FMT = libs/fmt/fmt.o libs/fmt/sha1.o include/mikktspace/mikktspace.o libs/fmt/mikkt.o libs/fmt/dxt.o
 
 SDL = libs/sdl/sdl.o libs/sdl/gl.o
@@ -133,6 +135,7 @@ LIBFLAGS += -L/opt/libjpeg-turbo/lib64
 endif
 LIBPNG = -lpng16
 LIBOPENAL = -lopenal
+LIBOPENGL = -lGL
 RELEASE_NAME = linux
 
 endif
@@ -149,7 +152,7 @@ endif
 all: libhl hl libs
 
 install:
-	$(UNAME)==Darwin && make uninstall
+	$(UNAME)==Darwin && ${MAKE} uninstall
 	mkdir -p $(INSTALL_BIN_DIR)
 	cp hl $(INSTALL_BIN_DIR)
 	mkdir -p $(INSTALL_LIB_DIR)
@@ -173,8 +176,11 @@ hlc: ${BOOT}
 hl: ${HL} libhl
 	${CC} ${CFLAGS} -o hl ${HL} ${LFLAGS} ${EXTRA_LFLAGS} ${HLFLAGS}
 
+libs/fmt/%.o: libs/fmt/%.c
+	${CC} ${CFLAGS} -o $@ -c $< ${FMT_INCLUDE}
+
 fmt: ${FMT} libhl
-	${CC} ${CFLAGS} -I include/mikktspace -I include/minimp3 -shared -o fmt.hdll ${FMT} ${LIBFLAGS} -L. -lhl ${LIBPNG} $(LIBTURBOJPEG) -lz -lvorbisfile
+	${CC} ${CFLAGS} -shared -o fmt.hdll ${FMT} ${LIBFLAGS} -L. -lhl ${LIBPNG} $(LIBTURBOJPEG) -lz -lvorbisfile
 
 sdl: ${SDL} libhl
 	${CC} ${CFLAGS} -shared -o sdl.hdll ${SDL} ${LIBFLAGS} -L. -lhl -lSDL2 $(LIBOPENGL)
@@ -194,22 +200,16 @@ uv: ${UV} libhl
 mysql: ${MYSQL} libhl
 	${CC} ${CFLAGS} -shared -o mysql.hdll ${MYSQL} ${LIBFLAGS} -L. -lhl
 
+
 mesa:
-	(cd libs/mesa && make)
+	(cd libs/mesa && ${MAKE})
 
-release: release_version release_$(RELEASE_NAME)
-
-release_version:
-	$(eval HL_VER := `(hl --version)`-$(RELEASE_NAME))
-	rm -rf hl-$(HL_VER)
-	mkdir hl-$(HL_VER)
-	mkdir hl-$(HL_VER)/include
-	cp src/hl.h src/hlc* hl-$(HL_VER)/include
+release: release_prepare release_$(RELEASE_NAME)
 
 release_haxelib:
-	make HLIB=directx release_haxelib_package
-	make HLIB=sdl release_haxelib_package
-	make HLIB=openal release_haxelib_package
+	${MAKE} HLIB=directx release_haxelib_package
+	${MAKE} HLIB=sdl release_haxelib_package
+	${MAKE} HLIB=openal release_haxelib_package
 
 ifeq ($(HLIB),directx)
 HLPACK=dx
@@ -225,23 +225,28 @@ release_haxelib_package:
 	haxelib submit $(HLIB).zip
 	rm -rf $(HLIB)_release
 
+BUILD_DIR ?= .
+PACKAGE_NAME := hashlink-$(shell $(BUILD_DIR)/hl --version)-$(RELEASE_NAME)
+
+release_prepare:
+	rm -rf $(PACKAGE_NAME)
+	mkdir $(PACKAGE_NAME)
+	mkdir $(PACKAGE_NAME)/include
+	cp src/hl.h src/hlc.h src/hlc_main.c $(PACKAGE_NAME)/include
+
 release_win:
-	(cd x64/ReleaseVS2013 && cp hl.exe libhl.dll *.hdll *.lib ../../hl-$(HL_VER))
-	cp c:/windows/system32/msvcr120.dll hl-$(HL_VER)
-	cp `which SDL2.dll` hl-$(HL_VER)
-	cp `which OpenAL32.dll` hl-$(HL_VER)
-	zip -r hl-$(HL_VER).zip hl-$(HL_VER)
-	rm -rf hl-$(HL_VER)
+	cp $(BUILD_DIR)/{hl.exe,libhl.dll,*.hdll,*.lib} $(PACKAGE_NAME)
+	cp $(VS_RUNTIME_LIBRARY) $(PACKAGE_NAME)
+	cp $(VS_SDL_LIBRARY) $(PACKAGE_NAME)
+	cp $(VS_OPENAL_LIBRARY) $(PACKAGE_NAME)/OpenAL32.dll
+	# 7z switches: https://sevenzip.osdn.jp/chm/cmdline/switches/
+	7z a -spf -y -mx9 -bt $(PACKAGE_NAME).zip $(PACKAGE_NAME)
+	rm -rf $(PACKAGE_NAME)
 
-release_linux:
-	cp hl libhl.so *.hdll hl-$(HL_VER)
-	tar -czf hl-$(HL_VER).tgz hl-$(HL_VER)
-	rm -rf hl-$(HL_VER)
-
-release_osx:
-	cp hl libhl.dylib *.hdll hl-$(HL_VER)
-	tar -czf hl-$(HL_VER).tgz hl-$(HL_VER)
-	rm -rf hl-$(HL_VER)
+release_linux release_osx:
+	cp hl libhl.$(LIBEXT) *.hdll $(PACKAGE_NAME)
+	tar -cvzf $(PACKAGE_NAME).tar.gz $(PACKAGE_NAME)
+	rm -rf $(PACKAGE_NAME)
 
 codesign_osx:
 	sudo security delete-identity -c hl-cert || echo
@@ -258,7 +263,7 @@ codesign_osx:
 	${CC} ${CFLAGS} -o $@ -c $<
 
 clean_o:
-	rm -f ${STD} ${BOOT} ${RUNTIME} ${PCRE} ${HL} ${FMT} ${SDL} ${SSL} ${OPENAL} ${UI} ${UV} ${HL_DEBUG}
+	rm -f ${STD} ${BOOT} ${RUNTIME} ${PCRE} ${HL} ${FMT} ${SDL} ${SSL} ${OPENAL} ${UI} ${UV} ${MYSQL} ${SQLITE} ${HL_DEBUG}
 
 clean: clean_o
 	rm -f hl hl.exe libhl.$(LIBEXT) *.hdll
