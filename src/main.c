@@ -50,8 +50,6 @@ typedef char pchar;
 #	include <limits.h>
 #endif
 
-#include <unistd.h>
-
 typedef struct {
 	pchar *file;
 	hl_code *code;
